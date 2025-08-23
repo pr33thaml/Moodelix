@@ -1,12 +1,9 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Moodelix - Todo & Mood Tracker',
-  description: 'A beautiful app to track your todos and mood',
+  title: 'Moodboard Focus',
+  description: 'Focus dashboard with mood playlists, tasks, and live wallpapers',
 }
 
 export default function RootLayout({
@@ -16,11 +13,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-          {children}
-        </div>
+      <body className="min-h-screen">
+        {children}
       </body>
     </html>
   )
 }
+
+
