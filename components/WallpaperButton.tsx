@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { wallpapers as staticWallpapers } from '@/lib/wallpaperData'
 
 export default function WallpaperButton({ 
   onWallpaperChange, 
@@ -33,11 +34,14 @@ export default function WallpaperButton({
         const name = filename.split('.')[0] || 'Unknown'
         const type = url.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image'
         
+        // Try to find a matching wallpaper object to get the proper name and thumbnail
+        const wallpaperData = staticWallpapers.find((w: any) => w.url === url)
+        
         return {
           key: `wallpaper-${index}`,
-          label: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          label: wallpaperData?.name || name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           url: url,
-          thumbnail: url,
+          thumbnail: wallpaperData?.thumbnail || url,
           type: type
         }
       })

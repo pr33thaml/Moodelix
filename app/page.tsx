@@ -419,7 +419,7 @@ export default function HomePage() {
             wallpaperBrightness === 'dark' ? 'brightness-75' :
             wallpaperBrightness === 'normal' ? 'brightness-100' : 'brightness-120'
           }`} 
-          autoPlay muted loop playsInline src={bgUrl} 
+          autoPlay muted loop playsInline preload="auto" src={bgUrl} 
         />
       ) : bgMode === 'image' && bgUrl ? (
         <img 
