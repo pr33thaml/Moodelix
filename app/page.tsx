@@ -208,7 +208,7 @@ export default function HomePage() {
     }
   }
 
-  // Wallpaper functions - Lazy loading for better performance
+  // Wallpaper functions - Progressive loading for maximum performance
   const loadWallpapers = useCallback(async () => {
     try {
       // Get wallpaper data (just the keys, not URLs yet)
@@ -220,7 +220,7 @@ export default function HomePage() {
       setAllWallpapers([...liveWallpapers.map(w => w.url), ...photoWallpapers.map(w => w.url)])
       
       if (liveWallpapers.length > 0) {
-        // Only load ONE random wallpaper initially (lazy loading)
+        // Only load ONE random wallpaper initially (progressive loading)
         const randomIndex = Math.floor(Math.random() * liveWallpapers.length)
         const randomWallpaperKey = liveWallpapers[randomIndex].url
         
@@ -230,6 +230,21 @@ export default function HomePage() {
         setBgUrl(randomWallpaperUrl)
         setCurrentWallpaperIndex(randomIndex)
         setBgMode('video')
+        
+        // Preload next 2 wallpapers in background for smooth slideshow
+        setTimeout(async () => {
+          try {
+            const nextIndex = (randomIndex + 1) % liveWallpapers.length
+            const nextWallpaperKey = liveWallpapers[nextIndex].url
+            await getSignedUrl(nextWallpaperKey) // Preload but don't set
+            
+            const prevIndex = (randomIndex - 1 + liveWallpapers.length) % liveWallpapers.length
+            const prevWallpaperKey = liveWallpapers[prevIndex].url
+            await getSignedUrl(prevWallpaperKey) // Preload but don't set
+          } catch (error) {
+            // Silent preload, don't break main functionality
+          }
+        }, 2000) // Wait 2 seconds then preload
       }
     } catch (error) {
       console.error('Error loading wallpapers:', error)
