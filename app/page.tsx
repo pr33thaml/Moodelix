@@ -93,6 +93,12 @@ export default function HomePage() {
   const [currentWallpaperIndex, setCurrentWallpaperIndex] = useState(0)
   const [wallpaperType, setWallpaperType] = useState<'live' | 'photo'>('live')
   
+  // Cache for signed URLs to avoid repeated API calls
+  const [urlCache, setUrlCache] = useState<Map<string, string>>(new Map())
+  
+  // Loading state for better UX
+  const [isLoadingWallpaper, setIsLoadingWallpaper] = useState(false)
+  
   // Sound effects
   const { playClickSound, playExitSound, playToggleSound } = useSoundEffects()
   const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(false)
@@ -189,6 +195,9 @@ export default function HomePage() {
 
   // Helper function to get signed URL from API
   const getSignedUrl = async (s3Key: string): Promise<string> => {
+    if (urlCache.has(s3Key)) {
+      return urlCache.get(s3Key)!
+    }
     try {
       const response = await fetch('/api/wallpapers', {
         method: 'POST',
@@ -201,7 +210,9 @@ export default function HomePage() {
       }
       
       const data = await response.json()
-      return data.signedUrl
+      const signedUrl = data.signedUrl
+      setUrlCache(prev => new Map(prev).set(s3Key, signedUrl))
+      return signedUrl
     } catch (error) {
       console.error('Error getting signed URL:', error)
       throw error
@@ -211,6 +222,8 @@ export default function HomePage() {
   // Wallpaper functions - Ultra-fast loading: show UI instantly, load video in background
   const loadWallpapers = useCallback(async () => {
     try {
+      setIsLoadingWallpaper(true)
+      
       // Get wallpaper data (just the keys, not URLs yet)
       const liveWallpapers = getLiveWallpapers()
       const photoWallpapers = getPhotoWallpapers()
@@ -225,33 +238,69 @@ export default function HomePage() {
         setCurrentWallpaperIndex(randomIndex)
         setBgMode('video')
         
-        // Load wallpaper in background (non-blocking) - don't clear bgUrl to prevent white flash
+        // Start loading the wallpaper immediately
         const randomWallpaperKey = liveWallpapers[randomIndex].url
         getSignedUrl(randomWallpaperKey).then(randomWallpaperUrl => {
           setBgUrl(randomWallpaperUrl)
+          setIsLoadingWallpaper(false)
         }).catch(error => {
           console.error('Error loading wallpaper:', error)
           // Fallback to default background
           setBgMode('image')
           setBgUrl('')
+          setIsLoadingWallpaper(false)
         })
         
-        // Preload next 2 wallpapers immediately in background
-        Promise.all([
-          getSignedUrl(liveWallpapers[(randomIndex + 1) % liveWallpapers.length].url),
-          getSignedUrl(liveWallpapers[(randomIndex - 1 + liveWallpapers.length) % liveWallpapers.length].url)
-        ]).catch(() => {
-          // Silent preload, don't break main functionality
+        // Preload next 3 wallpapers aggressively in parallel
+        const preloadIndices = [
+          (randomIndex + 1) % liveWallpapers.length,
+          (randomIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+          (randomIndex + 2) % liveWallpapers.length
+        ]
+        
+        // Preload all at once for faster subsequent changes
+        Promise.allSettled(
+          preloadIndices.map(index => 
+            getSignedUrl(liveWallpapers[index].url)
+          )
+        ).then(results => {
+          console.log('Preloaded wallpapers:', results.filter(r => r.status === 'fulfilled').length)
         })
+      } else {
+        setIsLoadingWallpaper(false)
       }
     } catch (error) {
       console.error('Error loading wallpapers:', error)
+      setIsLoadingWallpaper(false)
     }
   }, [])
 
   const handleWallpaperChange = async (s3Key: string) => {
     try {
-      // Convert S3 key to signed URL
+      setIsLoadingWallpaper(true)
+      
+      // Check cache first for instant response
+      if (urlCache.has(s3Key)) {
+        const cachedUrl = urlCache.get(s3Key)!
+        setBgUrl(cachedUrl)
+        
+        // Check if it's a live wallpaper (for slideshow compatibility)
+        const isLiveWallpaper = s3Key.match(/\.(mp4|webm|mov)$/i)
+        
+        if (isLiveWallpaper) {
+          const wallpaperKeys = getLiveWallpapers().map(w => w.url)
+          const index = wallpaperKeys.indexOf(s3Key)
+          setCurrentWallpaperIndex(index >= 0 ? index : 0)
+        } else {
+          setCurrentWallpaperIndex(-1)
+        }
+        
+        setBgMode(isLiveWallpaper ? 'video' : 'image')
+        setIsLoadingWallpaper(false)
+        return
+      }
+      
+      // Convert S3 key to signed URL if not cached
       const signedUrl = await getSignedUrl(s3Key)
       
       // Check if it's a live wallpaper (for slideshow compatibility)
@@ -274,8 +323,10 @@ export default function HomePage() {
       }
       
       setBgUrl(signedUrl)
+      setIsLoadingWallpaper(false)
     } catch (error) {
       console.error('Error loading wallpaper:', error)
+      setIsLoadingWallpaper(false)
     }
   }
 
@@ -345,6 +396,16 @@ export default function HomePage() {
           
           // Preload the next wallpaper before changing to prevent white flash
           const wallpaperKey = wallpapers[newIndex]
+          
+          // Check cache first for instant response
+          if (urlCache.has(wallpaperKey)) {
+            const cachedUrl = urlCache.get(wallpaperKey)!
+            setBgUrl(cachedUrl)
+            setBgMode('video')
+            return newIndex
+          }
+          
+          // If not cached, load it
           getSignedUrl(wallpaperKey).then(signedUrl => {
             // Only change background after we have the new URL ready
             setBgUrl(signedUrl)
@@ -439,13 +500,13 @@ export default function HomePage() {
           src={bgUrl} alt="background" 
         />
       ) : (
-        <div className="video-bg bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+        <div className="video-bg bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
           <div className="text-center text-white/60">
-            {bgMode === 'video' && !bgUrl ? (
+            {isLoadingWallpaper ? (
               <>
-                <div className="text-6xl mb-4 animate-spin">⏳</div>
-                <div className="text-xl font-medium mb-2">Loading Wallpaper...</div>
-                <div className="text-sm text-white/40">This will take just a few seconds</div>
+                <div className="text-6xl mb-4 animate-pulse">🎬</div>
+                <div className="text-xl font-medium mb-2">Loading Live Wallpaper...</div>
+                <div className="text-sm text-white/40">This will take just a moment</div>
               </>
             ) : (
               <>
@@ -540,6 +601,21 @@ export default function HomePage() {
                 <span className="text-white/40 text-xs font-medium">
                   {wallpapers.length} wallpapers loaded
               </span>
+              )}
+              
+              {/* Cache status indicator */}
+              {urlCache.size > 0 && (
+                <span className="text-white/30 text-xs font-medium">
+                  {urlCache.size} cached
+                </span>
+              )}
+              
+              {/* Loading indicator */}
+              {isLoadingWallpaper && (
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 border border-white/30 border-t-white/80 rounded-full animate-spin"></div>
+                  <span className="text-white/40 text-xs">Loading...</span>
+                </div>
               )}
             </>
           )}
