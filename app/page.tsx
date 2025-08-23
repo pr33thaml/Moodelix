@@ -208,37 +208,28 @@ export default function HomePage() {
     }
   }
 
-  // Wallpaper functions
+  // Wallpaper functions - Lazy loading for better performance
   const loadWallpapers = useCallback(async () => {
     try {
-      // Get wallpaper data and convert S3 keys to signed URLs
+      // Get wallpaper data (just the keys, not URLs yet)
       const liveWallpapers = getLiveWallpapers()
       const photoWallpapers = getPhotoWallpapers()
       
-      // Convert S3 keys to signed URLs
-      const liveWallpaperUrls = await Promise.all(
-        liveWallpapers.map(async (w) => await getSignedUrl(w.url))
-      )
-      const photoWallpaperUrls = await Promise.all(
-        photoWallpapers.map(async (w) => await getSignedUrl(w.url))
-      )
+      // Store wallpaper keys for selection (not URLs)
+      setWallpapers(liveWallpapers.map(w => w.url))
+      setAllWallpapers([...liveWallpapers.map(w => w.url), ...photoWallpapers.map(w => w.url)])
       
-      // Set default wallpapers (only live wallpapers for page reload)
-      setWallpapers(liveWallpaperUrls)
-      // Store all wallpapers for wallpaper selection
-      setAllWallpapers([...liveWallpaperUrls, ...photoWallpaperUrls])
-      
-      if (liveWallpaperUrls.length > 0) {
-        const randomIndex = Math.floor(Math.random() * liveWallpaperUrls.length)
-        const randomWallpaper = liveWallpaperUrls[randomIndex]
-        setBgUrl(randomWallpaper)
-        setCurrentWallpaperIndex(randomIndex)
+      if (liveWallpapers.length > 0) {
+        // Only load ONE random wallpaper initially (lazy loading)
+        const randomIndex = Math.floor(Math.random() * liveWallpapers.length)
+        const randomWallpaperKey = liveWallpapers[randomIndex].url
         
-        if (randomWallpaper.match(/\.(mp4|webm|mov)$/i)) {
-          setBgMode('video')
-        } else {
-          setBgMode('image')
-        }
+        // Convert only this one to signed URL
+        const randomWallpaperUrl = await getSignedUrl(randomWallpaperKey)
+        
+        setBgUrl(randomWallpaperUrl)
+        setCurrentWallpaperIndex(randomIndex)
+        setBgMode('video')
       }
     } catch (error) {
       console.error('Error loading wallpapers:', error)

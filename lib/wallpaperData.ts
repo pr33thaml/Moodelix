@@ -133,7 +133,7 @@ export const wallpapers: WallpaperItem[] = [
     category: 'live'
   },
   
-  // Photo Wallpapers (Images) - Your real photo wallpapers
+  // Photo Wallpapers (Images) - Only fast-loading photos (< 2MB)
   {
     id: '16',
     name: 'Photo 1',
@@ -146,7 +146,7 @@ export const wallpapers: WallpaperItem[] = [
     id: '17',
     name: 'Photo 2',
     type: 'image',
-    url: 'photo-wallpaper/1 (1).png',
+    url: 'photo-wallpaper/1 (18).jpg',
     thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+2',
     category: 'photo'
   },
@@ -154,7 +154,7 @@ export const wallpapers: WallpaperItem[] = [
     id: '18',
     name: 'Photo 3',
     type: 'image',
-    url: 'photo-wallpaper/1 (18).jpg',
+    url: 'photo-wallpaper/1 (21).jpg',
     thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+3',
     category: 'photo'
   },
@@ -162,7 +162,7 @@ export const wallpapers: WallpaperItem[] = [
     id: '19',
     name: 'Photo 4',
     type: 'image',
-    url: 'photo-wallpaper/1 (19).jpg',
+    url: 'photo-wallpaper/1 (29).jpg',
     thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+4',
     category: 'photo'
   },
@@ -170,7 +170,7 @@ export const wallpapers: WallpaperItem[] = [
     id: '20',
     name: 'Photo 5',
     type: 'image',
-    url: 'photo-wallpaper/1 (2).png',
+    url: 'photo-wallpaper/1 (33).jpg',
     thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+5',
     category: 'photo'
   },
@@ -178,7 +178,7 @@ export const wallpapers: WallpaperItem[] = [
     id: '21',
     name: 'Photo 6',
     type: 'image',
-    url: 'photo-wallpaper/1 (21).jpg',
+    url: 'photo-wallpaper/1 (5).jpg',
     thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+6',
     category: 'photo'
   },
@@ -186,56 +186,8 @@ export const wallpapers: WallpaperItem[] = [
     id: '22',
     name: 'Photo 7',
     type: 'image',
-    url: 'photo-wallpaper/1 (25).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+7',
-    category: 'photo'
-  },
-  {
-    id: '23',
-    name: 'Photo 8',
-    type: 'image',
-    url: 'photo-wallpaper/1 (29).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+8',
-    category: 'photo'
-  },
-  {
-    id: '24',
-    name: 'Photo 9',
-    type: 'image',
-    url: 'photo-wallpaper/1 (3).png',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+9',
-    category: 'photo'
-  },
-  {
-    id: '25',
-    name: 'Photo 10',
-    type: 'image',
-    url: 'photo-wallpaper/1 (33).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+10',
-    category: 'photo'
-  },
-  {
-    id: '26',
-    name: 'Photo 11',
-    type: 'image',
-    url: 'photo-wallpaper/1 (5).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+11',
-    category: 'photo'
-  },
-  {
-    id: '27',
-    name: 'Photo 12',
-    type: 'image',
     url: 'photo-wallpaper/1 (7).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+12',
-    category: 'photo'
-  },
-  {
-    id: '28',
-    name: 'Photo 13',
-    type: 'image',
-    url: 'photo-wallpaper/1 (8).png',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+13',
+    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+7',
     category: 'photo'
   }
 ]
