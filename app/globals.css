@@ -1,6 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Indie+Flower&family=Patrick+Hand&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Merriweather:wght@300;400;700&family=Lora:wght@400;500;600;700&family=Crimson+Text:wght@400;600;700&family=Source+Serif+Pro:wght@300;400;600;700&family=Libre+Baskerville:wght@400;700&family=Vollkorn:wght@400;500;600;700&family=Bree+Serif&family=Josefin+Sans:wght@300;400;600;700&family=Quicksand:wght@300;400;500;600;700&family=Comfortaa:wght@300;400;500;600;700&family=Fredoka+One&family=Nunito:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Test font classes - these should work */
+.font-space-grotesk {
+  font-family: 'Space Grotesk', sans-serif !important;
+}
+
+.font-handwriting {
+  font-family: 'Architects Daughter', cursive !important;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif !important;
+}
+
+.font-poppins {
+  font-family: 'Poppins', sans-serif !important;
+}
+
+.font-roboto {
+  font-family: 'Roboto', sans-serif !important;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif !important;
+}
+
+.font-playfair {
+  font-family: 'Playfair Display', serif !important;
+}
+
+.font-merriweather {
+  font-family: 'Merriweather', serif !important;
+}
+
+.font-lora {
+  font-family: 'Lora', serif !important;
+}
+
+.font-crimson {
+  font-family: 'Crimson Text', serif !important;
+}
+
+.font-source-serif {
+  font-family: 'Source Serif Pro', serif !important;
+}
+
+.font-libre-baskerville {
+  font-family: 'Libre Baskerville', serif !important;
+}
+
+.font-vollkorn {
+  font-family: 'Vollkorn', serif !important;
+}
+
+.font-bree-serif {
+  font-family: 'Bree Serif', serif !important;
+}
+
+.font-josefin-sans {
+  font-family: 'Josefin Sans', sans-serif !important;
+}
+
+.font-quicksand {
+  font-family: 'Quicksand', sans-serif !important;
+}
+
+.font-comfortaa {
+  font-family: 'Comfortaa', sans-serif !important;
+}
+
+.font-fredoka {
+  font-family: 'Fredoka One', sans-serif !important;
+}
+
+.font-nunito {
+  font-family: 'Nunito', sans-serif !important;
+}
+
+.font-montserrat {
+  font-family: 'Montserrat', sans-serif !important;
+}
+
+
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
@@ -55,14 +144,14 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #10b981;
+  background: white;
   cursor: pointer;
-  border: 2px solid #ffffff;
+  border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .slider::-webkit-slider-thumb:hover {
-  background: #059669;
+  background: rgba(255, 255, 255, 0.9);
   transform: scale(1.1);
 }
 
@@ -70,14 +159,14 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #10b981;
+  background: white;
   cursor: pointer;
-  border: 2px solid #ffffff;
+  border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .slider::-moz-range-thumb:hover {
-  background: #059669;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 /* Video background */

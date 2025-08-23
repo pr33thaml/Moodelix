@@ -6,6 +6,7 @@ import MiniPlayerControl from '@/components/MiniPlayerControl'
 import BackgroundMusicPlayer from '@/components/BackgroundMusicPlayer'
 import CenterMenu from '@/components/CenterMenu'
 import { useSoundEffects } from '@/lib/useSoundEffects'
+import Tooltip from '@/components/Tooltip'
 
 export default function HomePage() {
   const [timeString, setTimeString] = useState('')
@@ -27,6 +28,10 @@ export default function HomePage() {
 
   const [logoSize, setLogoSize] = useState<'small' | 'medium' | 'large'>('large')
   const [quoteSize, setQuoteSize] = useState<'small' | 'medium' | 'large'>('large')
+  const [currentFont, setCurrentFont] = useState<'space-grotesk' | 'handwriting' | 'inter' | 'poppins' | 'roboto' | 'cinzel' | 'playfair' | 'merriweather' | 'lora' | 'crimson' | 'source-serif' | 'libre-baskerville' | 'vollkorn' | 'bree-serif' | 'josefin-sans' | 'quicksand' | 'comfortaa' | 'fredoka' | 'nunito' | 'montserrat'>('space-grotesk')
+  const [audioVolume, setAudioVolume] = useState(0.7)
+  const [audioMuted, setAudioMuted] = useState(false)
+  const [hideEverything, setHideEverything] = useState(false)
 
   // Music control functions
   const handleMusicPlay = (platform: 'youtube' | 'spotify', title: string, embedUrl: string) => {
@@ -70,6 +75,7 @@ export default function HomePage() {
   const [showBottomMenu, setShowBottomMenu] = useState(true)
   const [showTitle, setShowTitle] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
+  const [showFontPanel, setShowFontPanel] = useState(false)
   const [tasks, setTasks] = useState<Array<{id: string, text: string, completed: boolean, createdAt: Date}>>([])
   const [focusMode, setFocusMode] = useState<'focus' | 'shortBreak' | 'longBreak'>('focus')
   const [isTimerRunning, setIsTimerRunning] = useState(false)
@@ -292,7 +298,7 @@ export default function HomePage() {
         
         const newWallpaper = wallpapers[newIndex]
         setBgUrl(newWallpaper)
-        setBgMode('video')
+    setBgMode('video')
         
         return newIndex
       })
@@ -311,8 +317,52 @@ export default function HomePage() {
     setCurrentWallpaperIndex(-1) // Mark as not in slideshow mode
   }, [slideshowEnabled, bgUrl, bgMode])
 
+  // Control audio volume for all audio/video elements
+  useEffect(() => {
+    const videoElements = document.querySelectorAll('video')
+    const audioElements = document.querySelectorAll('audio')
+    
+    videoElements.forEach(video => {
+      video.volume = audioMuted ? 0 : audioVolume
+      video.muted = audioMuted
+    })
+    
+    audioElements.forEach(audio => {
+      audio.volume = audioMuted ? 0 : audioVolume
+      audio.muted = audioMuted
+    })
+  }, [audioVolume, audioMuted])
+
+  // Font mapping for dynamic classes
+  const fontClasses = {
+    'space-grotesk': 'font-space-grotesk',
+    'handwriting': 'font-handwriting',
+    'inter': 'font-inter',
+    'poppins': 'font-poppins',
+    'roboto': 'font-roboto',
+    'cinzel': 'font-cinzel',
+    'playfair': 'font-playfair',
+    'merriweather': 'font-merriweather',
+    'lora': 'font-lora',
+    'crimson': 'font-crimson',
+    'source-serif': 'font-source-serif',
+    'libre-baskerville': 'font-libre-baskerville',
+    'vollkorn': 'font-vollkorn',
+    'bree-serif': 'font-bree-serif',
+    'josefin-sans': 'font-josefin-sans',
+    'quicksand': 'font-quicksand',
+    'comfortaa': 'font-comfortaa',
+    'fredoka': 'font-fredoka',
+    'nunito': 'font-nunito',
+    'montserrat': 'font-montserrat'
+  }
+
+
+
   return (
-    <main className="relative min-h-screen w-full overflow-hidden">
+    <main className={`relative min-h-screen w-full overflow-hidden ${fontClasses[currentFont]}`}>
+
+      
       {/* Background */}
       {bgMode === 'video' && bgUrl ? (
         <video className="video-bg" autoPlay muted loop playsInline src={bgUrl} />
@@ -328,14 +378,45 @@ export default function HomePage() {
       )}
       <div className="video-overlay" />
 
-      {/* Header */}
+      {/* Hide Everything Toggle - Always Visible */}
+      <div className="fixed bottom-6 left-6 z-[60]">
+        <Tooltip content={hideEverything ? 'Show Everything' : 'Hide Everything'}>
+          <button
+            onClick={() => {
+              playClickSoundIfEnabled()
+              setHideEverything(!hideEverything)
+            }}
+            className={`w-10 h-10 rounded-full border backdrop-blur flex items-center justify-center transition-all duration-200 ${
+              hideEverything 
+                ? 'bg-white/30 border-white/40 text-white' 
+                : 'bg-black/30 border-white/20 text-white/80 hover:bg-white/20'
+            }`}
+          >
+          {hideEverything ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+            </svg>
+                      )}
+          </button>
+          </Tooltip>
+        </div>
+
+      {/* Main Content - Hidden when hideEverything is true */}
+      {!hideEverything && (
+        <>
+          {/* Header */}
       <div className="fixed top-8 inset-x-8 z-20 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {showSlideshow && (
             <>
           <span className="text-white/60 text-xs font-medium">Slideshow</span>
               <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
-                    <button
+          <button
             onClick={() => {
               playToggleSoundIfEnabled()
               setSlideshowEnabled(!slideshowEnabled)
@@ -395,8 +476,9 @@ export default function HomePage() {
         )}
         
         <div className="flex items-center gap-3">
-          <button
-                          onClick={() => {
+          <Tooltip content={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}>
+            <button
+              onClick={() => {
                 playClickSoundIfEnabled()
                 if (!document.fullscreenElement) {
                   document.documentElement.requestFullscreen();
@@ -406,9 +488,8 @@ export default function HomePage() {
                   setIsFullscreen(false);
                 }
               }}
-
-            className="w-10 h-10 rounded-full bg-white/10 border border-white/20 backdrop-blur flex items-center justify-center transition-all duration-200 hover:bg-white/20"
-          >
+              className="w-10 h-10 rounded-full bg-white/10 border border-white/20 backdrop-blur flex items-center justify-center transition-all duration-200 hover:bg-white/20"
+            >
             {isFullscreen ? (
               <svg className="w-5 h-5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"></path>
@@ -419,19 +500,35 @@ export default function HomePage() {
               </svg>
             )}
           </button>
+          </Tooltip>
+          
+          <Tooltip content="Change Font">
+            <button
+              onClick={() => {
+                playClickSoundIfEnabled()
+                setShowFontPanel(!showFontPanel)
+              }}
+              className="w-10 h-10 rounded-full bg-white/10 border border-white/20 backdrop-blur flex items-center justify-center transition-all duration-200 hover:bg-white/20"
+            >
+            <svg className="w-5 h-5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 4h12M6 4v16M6 12h8" />
+            </svg>
+          </button>
+          </Tooltip>
 
-          <button 
-            onClick={() => {
-              playClickSoundIfEnabled()
-              setShowSettings(!showSettings)
-            }}
-
-            className="setting-btn"
-          >
+          <Tooltip content="Settings">
+            <button 
+              onClick={() => {
+                playClickSoundIfEnabled()
+                setShowSettings(!showSettings)
+              }}
+              className="setting-btn"
+            >
             <span className="bar bar1"></span>
             <span className="bar bar2"></span>
             <span className="bar bar1"></span>
           </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -632,6 +729,64 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* Font Panel */}
+      {showFontPanel && (
+        <div className="fixed inset-0 z-[99] bg-black/20" onClick={() => {
+          playExitSoundIfEnabled()
+          setShowFontPanel(false)
+        }}>
+          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-3 min-w-[220px] max-w-[240px] z-[100] backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="text-white text-sm font-medium mb-3">Font Settings</div>
+            
+            <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent pr-2">
+              {[
+                { key: 'space-grotesk', name: 'Space Grotesk', preview: 'AaBbCcDd', category: 'Modern' },
+                { key: 'handwriting', name: 'Architects Daughter', preview: 'AaBbCcDd', category: 'Handwriting' },
+                { key: 'inter', name: 'Inter', preview: 'AaBbCcDd', category: 'Clean' },
+                { key: 'poppins', name: 'Poppins', preview: 'AaBbCcDd', category: 'Friendly' },
+                { key: 'roboto', name: 'Roboto', preview: 'AaBbCcDd', category: 'Google' },
+                { key: 'cinzel', name: 'Cinzel', preview: 'AaBbCcDd', category: 'Elegant' },
+                { key: 'playfair', name: 'Playfair Display', preview: 'AaBbCcDd', category: 'Classic' },
+                { key: 'merriweather', name: 'Merriweather', preview: 'AaBbCcDd', category: 'Serif' },
+                { key: 'lora', name: 'Lora', preview: 'AaBbCcDd', category: 'Serif' },
+                { key: 'crimson', name: 'Crimson Text', preview: 'AaBbCcDd', category: 'Serif' },
+                { key: 'source-serif', name: 'Source Serif Pro', preview: 'AaBbCcDd', category: 'Serif' },
+                { key: 'libre-baskerville', name: 'Libre Baskerville', preview: 'AaBbCcDd', category: 'Classic' },
+                { key: 'vollkorn', name: 'Vollkorn', preview: 'AaBbCcDd', category: 'Serif' },
+                { key: 'bree-serif', name: 'Bree Serif', preview: 'AaBbCcDd', category: 'Serif' },
+                { key: 'josefin-sans', name: 'Josefin Sans', preview: 'AaBbCcDd', category: 'Sans' },
+                { key: 'quicksand', name: 'Quicksand', preview: 'AaBbCcDd', category: 'Rounded' },
+                { key: 'comfortaa', name: 'Comfortaa', preview: 'AaBbCcDd', category: 'Rounded' },
+                { key: 'fredoka', name: 'Fredoka One', preview: 'AaBbCcDd', category: 'Fun' },
+                { key: 'nunito', name: 'Nunito', preview: 'AaBbCcDd', category: 'Friendly' },
+                { key: 'montserrat', name: 'Montserrat', preview: 'AaBbCcDd', category: 'Modern' }
+              ].map((font) => (
+                <button
+                  key={font.key}
+                  onClick={() => {
+                    playClickSoundIfEnabled()
+                    setCurrentFont(font.key as any)
+                  }}
+                  className={`w-full p-2 rounded-lg border transition-all text-left ${
+                    currentFont === font.key
+                      ? 'bg-white/20 border-white/40 text-white'
+                      : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/15'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-sm font-medium">{font.name}</div>
+                    <div className="text-xs text-white/60 bg-white/10 px-1.5 py-0.5 rounded-full">{font.category}</div>
+                  </div>
+                  <div className={`text-base ${fontClasses[font.key as keyof typeof fontClasses]}`}>
+                    {font.preview}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       {showTodo ? (
         /* Todo Panel - Replaces main content */
@@ -734,7 +889,7 @@ export default function HomePage() {
               </div>
 
               <div className="text-center mb-8">
-                <div className="text-8xl font-mono font-bold text-white mb-4">
+                <div className="text-8xl font-bold text-white mb-4">
                   {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
                 </div>
                 <div className="text-white/60 text-xl capitalize">{focusMode === 'focus' ? 'Deep Work' : focusMode === 'shortBreak' ? 'Quick Rest' : 'Long Break'} Session</div>
@@ -851,7 +1006,7 @@ export default function HomePage() {
                     className="px-8 py-4 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-3 text-lg font-medium"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Start Timer
                   </button>
@@ -870,7 +1025,7 @@ export default function HomePage() {
               const main = m? m[1] : timeString; 
               const suffix = m? m[2].toLowerCase() : ''; 
               return (
-                <div className="font-mono tabular-nums text-6xl md:text-8xl lg:text-9xl drop-shadow-sm text-white/90">
+                <div className="tabular-nums text-6xl md:text-8xl lg:text-9xl drop-shadow-sm text-white/90">
                   {main}
                   {suffix && <span className="ml-3 text-2xl align-baseline text-white/90">{suffix}</span>}
                 </div>
@@ -885,6 +1040,8 @@ export default function HomePage() {
         </div>
       </div>
       )}
+
+
 
       {/* Bottom Menu */}
       {showBottomMenu && (
@@ -905,8 +1062,8 @@ export default function HomePage() {
               }}
               onHome={() => {
                 console.log('Home button clicked, closing all panels')
-                setShowTodo(false)
                 setShowFocus(false)
+                setShowTodo(false)
               }}
               wallpapers={allWallpapers}
 
@@ -914,6 +1071,8 @@ export default function HomePage() {
             />
         </div>
       </footer>
+      )}
+        </>
       )}
 
       {/* Music Player */}
