@@ -8,6 +8,7 @@ import BugReportPopup from '@/components/BugReportPopup'
 import { useSoundEffects } from '@/lib/useSoundEffects'
 import Tooltip from '@/components/Tooltip'
 import { wallpapers as staticWallpapers, getRandomWallpaper, getLiveWallpapers, getPhotoWallpapers } from '@/lib/wallpaperData'
+import { getWallpaperUrl } from '@/lib/s3'
 
 export default function HomePage() {
   const [timeString, setTimeString] = useState('')
@@ -190,18 +191,26 @@ export default function HomePage() {
   // Wallpaper functions
   const loadWallpapers = useCallback(async () => {
     try {
-      // Use static wallpaper data instead of API calls
-      const liveWallpapers = getLiveWallpapers().map(w => w.url)
-      const photoWallpapers = getPhotoWallpapers().map(w => w.url)
+      // Get wallpaper data and convert S3 keys to signed URLs
+      const liveWallpapers = getLiveWallpapers()
+      const photoWallpapers = getPhotoWallpapers()
+      
+      // Convert S3 keys to signed URLs
+      const liveWallpaperUrls = await Promise.all(
+        liveWallpapers.map(async (w) => await getWallpaperUrl(w.url))
+      )
+      const photoWallpaperUrls = await Promise.all(
+        photoWallpapers.map(async (w) => await getWallpaperUrl(w.url))
+      )
       
       // Set default wallpapers (only live wallpapers for page reload)
-      setWallpapers(liveWallpapers)
+      setWallpapers(liveWallpaperUrls)
       // Store all wallpapers for wallpaper selection
-      setAllWallpapers([...liveWallpapers, ...photoWallpapers])
+      setAllWallpapers([...liveWallpaperUrls, ...photoWallpaperUrls])
       
-      if (liveWallpapers.length > 0) {
-        const randomIndex = Math.floor(Math.random() * liveWallpapers.length)
-        const randomWallpaper = liveWallpapers[randomIndex]
+      if (liveWallpaperUrls.length > 0) {
+        const randomIndex = Math.floor(Math.random() * liveWallpaperUrls.length)
+        const randomWallpaper = liveWallpaperUrls[randomIndex]
         setBgUrl(randomWallpaper)
         setCurrentWallpaperIndex(randomIndex)
         
@@ -216,25 +225,32 @@ export default function HomePage() {
     }
   }, [])
 
-  const handleWallpaperChange = (url: string) => {
-    setBgUrl(url)
-    
-    // Check if it's a live wallpaper (for slideshow compatibility)
-    const isLiveWallpaper = url.match(/\.(mp4|webm|mov)$/i)
-    
-    if (isLiveWallpaper) {
-      // For live wallpapers, find index in the slideshow wallpapers
-      const index = wallpapers.indexOf(url)
-      setCurrentWallpaperIndex(index >= 0 ? index : 0)
-    } else {
-      // For photo wallpapers, set a special index to indicate it's not in slideshow
-      setCurrentWallpaperIndex(-1)
-    }
-    
-    if (isLiveWallpaper) {
-      setBgMode('video')
-    } else {
-      setBgMode('image')
+  const handleWallpaperChange = async (s3Key: string) => {
+    try {
+      // Convert S3 key to signed URL
+      const signedUrl = await getWallpaperUrl(s3Key)
+      setBgUrl(signedUrl)
+      
+      // Check if it's a live wallpaper (for slideshow compatibility)
+      const isLiveWallpaper = s3Key.match(/\.(mp4|webm|mov)$/i)
+      
+      if (isLiveWallpaper) {
+        // For live wallpapers, find index in the slideshow wallpapers
+        const wallpaperKeys = getLiveWallpapers().map(w => w.url)
+        const index = wallpaperKeys.indexOf(s3Key)
+        setCurrentWallpaperIndex(index >= 0 ? index : 0)
+      } else {
+        // For photo wallpapers, set a special index to indicate it's not in slideshow
+        setCurrentWallpaperIndex(-1)
+      }
+      
+      if (isLiveWallpaper) {
+        setBgMode('video')
+      } else {
+        setBgMode('image')
+      }
+    } catch (error) {
+      console.error('Error loading wallpaper:', error)
     }
   }
 
