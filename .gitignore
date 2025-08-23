@@ -16,7 +16,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# wallpapers - keep folder but ignore files
-public/wallpaper/*
-!public/wallpaper/.keep
+# wallpapers - now tracked with Git LFS
+# public/wallpaper/*
+# !public/wallpaper/.keep
 .DS_Store
