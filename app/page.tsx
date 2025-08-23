@@ -238,10 +238,22 @@ export default function HomePage() {
         setCurrentWallpaperIndex(randomIndex)
         setBgMode('video')
         
-        // Start loading the wallpaper immediately
+        // Set a temporary animated background immediately to prevent grey
+        setBgUrl('')
+        
+        // Start loading the wallpaper immediately with timeout
         const randomWallpaperKey = liveWallpapers[randomIndex].url
-        getSignedUrl(randomWallpaperKey).then(randomWallpaperUrl => {
-          setBgUrl(randomWallpaperUrl)
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Loading timeout')), 10000)
+        )
+        
+        Promise.race([
+          getSignedUrl(randomWallpaperKey),
+          timeoutPromise
+        ]).then((randomWallpaperUrl) => {
+          setBgUrl(randomWallpaperUrl as string)
           setIsLoadingWallpaper(false)
         }).catch(error => {
           console.error('Error loading wallpaper:', error)
@@ -334,6 +346,40 @@ export default function HomePage() {
     setMounted(true)
     setTimeString(new Date().toLocaleTimeString())
     loadWallpapers()
+    
+    // Immediately start preloading wallpapers for instant switching
+    const preloadAllWallpapers = async () => {
+      try {
+        const liveWallpapers = getLiveWallpapers()
+        const photoWallpapers = getPhotoWallpapers()
+        
+        // Preload first 5 wallpapers immediately
+        const preloadKeys = [
+          ...liveWallpapers.slice(0, 3).map(w => w.url),
+          ...photoWallpapers.slice(0, 2).map(w => w.url)
+        ]
+        
+        console.log('Starting aggressive preload of', preloadKeys.length, 'wallpapers...')
+        
+        // Preload in parallel with progress tracking
+        const results = await Promise.allSettled(
+          preloadKeys.map(async (key, index) => {
+            const url = await getSignedUrl(key)
+            console.log(`Preloaded wallpaper ${index + 1}/${preloadKeys.length}`)
+            return { key, url }
+          })
+        )
+        
+        const successful = results.filter(r => r.status === 'fulfilled').length
+        console.log(`Successfully preloaded ${successful}/${preloadKeys.length} wallpapers`)
+        
+      } catch (error) {
+        console.error('Error in aggressive preloading:', error)
+      }
+    }
+    
+    // Start preloading after a short delay to not block initial render
+    setTimeout(preloadAllWallpapers, 1000)
   }, [loadWallpapers])
 
   useEffect(() => {
@@ -500,8 +546,15 @@ export default function HomePage() {
           src={bgUrl} alt="background" 
         />
       ) : (
-        <div className="video-bg bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-          <div className="text-center text-white/60">
+        <div className="video-bg bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center relative overflow-hidden">
+          {/* Animated background elements to prevent grey */}
+          <div className="absolute inset-0">
+            <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-float"></div>
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-float" style={{animationDelay: '1s'}}></div>
+            <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '2s'}}></div>
+          </div>
+          
+          <div className="text-center text-white/60 relative z-10">
             {isLoadingWallpaper ? (
               <>
                 <div className="text-6xl mb-4 animate-pulse">🎬</div>
