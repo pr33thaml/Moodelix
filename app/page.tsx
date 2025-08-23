@@ -7,6 +7,7 @@ import CenterMenu from '@/components/CenterMenu'
 import BugReportPopup from '@/components/BugReportPopup'
 import { useSoundEffects } from '@/lib/useSoundEffects'
 import Tooltip from '@/components/Tooltip'
+import { wallpapers as staticWallpapers, getRandomWallpaper, getLiveWallpapers, getPhotoWallpapers } from '@/lib/wallpaperData'
 
 export default function HomePage() {
   const [timeString, setTimeString] = useState('')
@@ -189,25 +190,25 @@ export default function HomePage() {
   // Wallpaper functions
   const loadWallpapers = useCallback(async () => {
     try {
-      const response = await fetch('/api/wallpapers')
-      if (response.ok) {
-        const data = await response.json()
-        // Set default wallpapers (only live wallpapers for page reload)
-        setWallpapers(data.wallpapers)
-        // Store all wallpapers for wallpaper selection
-        setAllWallpapers(data.allWallpapers || [])
+      // Use static wallpaper data instead of API calls
+      const liveWallpapers = getLiveWallpapers().map(w => w.url)
+      const photoWallpapers = getPhotoWallpapers().map(w => w.url)
+      
+      // Set default wallpapers (only live wallpapers for page reload)
+      setWallpapers(liveWallpapers)
+      // Store all wallpapers for wallpaper selection
+      setAllWallpapers([...liveWallpapers, ...photoWallpapers])
+      
+      if (liveWallpapers.length > 0) {
+        const randomIndex = Math.floor(Math.random() * liveWallpapers.length)
+        const randomWallpaper = liveWallpapers[randomIndex]
+        setBgUrl(randomWallpaper)
+        setCurrentWallpaperIndex(randomIndex)
         
-        if (data.wallpapers.length > 0) {
-          const randomIndex = Math.floor(Math.random() * data.wallpapers.length)
-          const randomWallpaper = data.wallpapers[randomIndex]
-          setBgUrl(randomWallpaper)
-          setCurrentWallpaperIndex(randomIndex)
-          
-          if (randomWallpaper.match(/\.(mp4|webm|mov)$/i)) {
-            setBgMode('video')
-          } else {
-            setBgMode('image')
-          }
+        if (randomWallpaper.match(/\.(mp4|webm|mov)$/i)) {
+          setBgMode('video')
+        } else {
+          setBgMode('image')
         }
       }
     } catch (error) {
