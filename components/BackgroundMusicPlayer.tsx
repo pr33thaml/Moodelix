@@ -127,10 +127,6 @@ export default function BackgroundMusicPlayer({ url, type, isVisible, isPlaying,
           }
           referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
-          muted={false}
-          loading="eager"
-          importance="high"
-          preload="auto"
         />
       </div>
       

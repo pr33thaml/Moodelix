@@ -199,9 +199,6 @@ export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, o
               }
               referrerPolicy="strict-origin-when-cross-origin"
               allowFullScreen
-              loading="eager"
-              importance="high"
-              preload="auto"
             />
           </div>
         </div>
