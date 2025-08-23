@@ -319,7 +319,7 @@ export default function HomePage() {
     return () => clearInterval(id)
   }, [quoteIndex, quotes])
 
-  // Wallpaper slideshow effect
+    // Wallpaper slideshow effect - Fixed to work with S3
   useEffect(() => {
     if (!slideshowEnabled || wallpapers.length === 0) return
     
@@ -327,36 +327,39 @@ export default function HomePage() {
       switch (slideshowSpeed) {
         case 'slow': return 60000    // 60 seconds
         case 'medium': return 30000  // 30 seconds
-        case 'fast': return 10000     // 10seconds
+        case 'fast': return 10000     // 10 seconds
         default: return 10000
       }
     }
     
-    const slideshowTimer = setInterval(() => {
-      setCurrentWallpaperIndex((prevIndex) => {
-        let newIndex
-        if (wallpapers.length === 1) {
-          newIndex = 0
-        } else if (slideshowRandomized) {
-          do {
-            newIndex = Math.floor(Math.random() * wallpapers.length)
-          } while (newIndex === prevIndex)
-        } else {
-          newIndex = (prevIndex + 1) % wallpapers.length
-        }
-        
-        const newWallpaper = wallpapers[newIndex]
-        setBgUrl(newWallpaper)
-        
-        // Determine if it's a video or image based on file extension
-        if (newWallpaper.match(/\.(mp4|webm|mov)$/i)) {
-    setBgMode('video')
-        } else {
-          setBgMode('image')
-        }
-        
-        return newIndex
-      })
+    const slideshowTimer = setInterval(async () => {
+      try {
+        setCurrentWallpaperIndex((prevIndex) => {
+          let newIndex
+          if (wallpapers.length === 1) {
+            newIndex = 0
+          } else if (slideshowRandomized) {
+            do {
+              newIndex = Math.floor(Math.random() * wallpapers.length)
+            } while (newIndex === prevIndex)
+          } else {
+            newIndex = (prevIndex + 1) % wallpapers.length
+          }
+          
+          // Get the wallpaper key and convert to signed URL
+          const wallpaperKey = wallpapers[newIndex]
+          getSignedUrl(wallpaperKey).then(signedUrl => {
+            setBgUrl(signedUrl)
+            setBgMode('video')
+          }).catch(error => {
+            console.error('Error loading slideshow wallpaper:', error)
+          })
+          
+          return newIndex
+        })
+      } catch (error) {
+        console.error('Slideshow error:', error)
+      }
     }, getSlideshowSpeed())
     
     return () => clearInterval(slideshowTimer)

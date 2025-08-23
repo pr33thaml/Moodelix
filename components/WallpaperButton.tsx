@@ -149,7 +149,14 @@ export default function WallpaperButton({
               {/* Preview Section */}
               {previewUrl && (
                 <div className="mb-3 p-2 bg-white/10 rounded-lg">
-                  {previewUrl.match(/\.(mp4|webm|mov)$/i) ? (
+                  {previewUrl === 'loading' ? (
+                    <div className="w-full h-28 bg-gradient-to-br from-gray-600 to-gray-800 rounded flex items-center justify-center">
+                      <div className="text-center text-white/60">
+                        <div className="text-2xl mb-2 animate-spin">⏳</div>
+                        <div className="text-sm">Loading Preview...</div>
+                      </div>
+                    </div>
+                  ) : previewUrl.match(/\.(mp4|webm|mov)$/i) ? (
                     <video 
                       src={previewUrl} 
                       className="w-full h-28 object-cover rounded"
@@ -183,13 +190,9 @@ export default function WallpaperButton({
                         className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
                       >
                         <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
-                          <video 
-                            src={wallpaper.thumbnail} 
-                            className="w-full h-full object-cover"
-                            muted 
-                            loop 
-                            playsInline
-                          />
+                          <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+                            <span className="text-white/60 text-xs">🎬</span>
+                          </div>
                         </div>
                         <span className="text-left text-xs">{wallpaper.label}</span>
                       </button>
@@ -213,17 +216,11 @@ export default function WallpaperButton({
                         className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
                       >
                         <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
-                          {wallpaper.isS3Thumbnail ? (
-                            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
-                              <span className="text-white/60 text-xs">📷</span>
-                            </div>
-                          ) : (
-                            <img 
-                              src={wallpaper.thumbnail} 
-                              className="w-full h-full object-cover"
-                              alt={wallpaper.label}
-                            />
-                          )}
+                          <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+                            <span className="text-white/60 text-xs">
+                              {wallpaper.type === 'video' ? '🎬' : '📷'}
+                            </span>
+                          </div>
                         </div>
                         <span className="text-left text-xs">{wallpaper.label}</span>
                       </button>
