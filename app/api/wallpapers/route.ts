@@ -30,13 +30,16 @@ export async function GET() {
       console.log('Photo wallpapers folder not found or empty')
     }
 
+    // Return live wallpapers for slideshow, but include all for selection
+    const defaultWallpapers = liveWallpapers
     const allWallpapers = [...liveWallpapers, ...photoWallpapers]
     
     return NextResponse.json({
-      wallpapers: allWallpapers,
+      wallpapers: defaultWallpapers, // Live wallpapers only for slideshow
       liveCount: liveWallpapers.length,
       photoCount: photoWallpapers.length,
-      total: allWallpapers.length
+      total: defaultWallpapers.length,
+      allWallpapers: allWallpapers // All wallpapers for selection interface
     })
   } catch (error) {
     console.error('Error scanning wallpapers:', error)

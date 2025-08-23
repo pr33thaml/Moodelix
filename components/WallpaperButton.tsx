@@ -2,53 +2,50 @@
 
 import { useEffect, useState } from 'react'
 
-export default function WallpaperButton({ onWallpaperChange }: { onWallpaperChange?: (url: string) => void }) {
+export default function WallpaperButton({ 
+  onWallpaperChange, 
+  wallpapers, 
+  onClick 
+}: { 
+  onWallpaperChange?: (url: string) => void, 
+  wallpapers: string[]
+  onClick?: () => void
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'live' | 'photo'>('live')
-  const [wallpapers, setWallpapers] = useState<Array<{
+  const [formattedWallpapers, setFormattedWallpapers] = useState<Array<{
     key: string
     label: string
     url: string
     thumbnail: string
     type: 'video' | 'image'
   }>>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
-  // Load wallpapers from API
+  // Format wallpapers from prop
   useEffect(() => {
-    const loadWallpapers = async () => {
-      try {
-        const response = await fetch('/api/wallpapers')
-        if (response.ok) {
-          const data = await response.json()
-          const formattedWallpapers = data.wallpapers.map((url: string, index: number) => {
-            const filename = url.split('/').pop() || ''
-            const name = filename.split('.')[0] || 'Unknown'
-            const type = url.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image'
-            
-            return {
-              key: `wallpaper-${index}`,
-              label: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              url: url,
-              thumbnail: url,
-              type: type
-            }
-          })
-          setWallpapers(formattedWallpapers)
+    if (wallpapers && wallpapers.length > 0) {
+      const formatted = wallpapers.map((url: string, index: number) => {
+        const filename = url.split('/').pop() || ''
+        const name = filename.split('.')[0] || 'Unknown'
+        const type = url.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image'
+        
+        return {
+          key: `wallpaper-${index}`,
+          label: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          url: url,
+          thumbnail: url,
+          type: type
         }
-      } catch (error) {
-        console.error('Error loading wallpapers:', error)
-      } finally {
-        setLoading(false)
-      }
+      })
+      setFormattedWallpapers(formatted)
     }
-
-    loadWallpapers()
-  }, [])
+  }, [wallpapers])
 
   const handleThemeSelect = (url: string, label: string) => {
     console.log('Wallpaper selected:', label, url)
+    onClick?.()
     if (onWallpaperChange) {
       onWallpaperChange(url)
     }
@@ -62,13 +59,16 @@ export default function WallpaperButton({ onWallpaperChange }: { onWallpaperChan
   }
 
   // Filter wallpapers by type
-  const liveWallpapers = wallpapers.filter(w => w.type === 'video')
-  const photoWallpapers = wallpapers.filter(w => w.type === 'image')
+  const liveWallpapers = formattedWallpapers.filter(w => w.type === 'video')
+  const photoWallpapers = formattedWallpapers.filter(w => w.type === 'image')
 
   return (
     <div className="relative">
       <button
-        onClick={handleButtonClick}
+        onClick={() => {
+          onClick?.()
+          handleButtonClick()
+        }}
         className="link"
       >
         <span className="link-icon">
@@ -89,21 +89,27 @@ export default function WallpaperButton({ onWallpaperChange }: { onWallpaperChan
           {/* Tab Navigation */}
           <div className="flex mb-3 border-b border-white/20">
             <button
-              onClick={() => setActiveTab('live')}
+              onClick={() => {
+                onClick?.()
+                setActiveTab('live')
+              }}
               className={`px-3 py-2 text-xs font-medium transition-colors ${
                 activeTab === 'live' 
                   ? 'text-white border-b-2 border-white' 
-                  : 'text-white/60 hover:text-white/80'
+                  : 'text-white/80'
               }`}
             >
               Live ({liveWallpapers.length})
             </button>
             <button
-              onClick={() => setActiveTab('photo')}
+              onClick={() => {
+                onClick?.()
+                setActiveTab('photo')
+              }}
               className={`px-3 py-2 text-xs font-medium transition-colors ${
                 activeTab === 'photo' 
                   ? 'text-white border-b-2 border-white' 
-                  : 'text-white/60 hover:text-white/80'
+                  : 'text-white/80'
               }`}
             >
               Photo ({photoWallpapers.length})

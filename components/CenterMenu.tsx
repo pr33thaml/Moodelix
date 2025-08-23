@@ -7,12 +7,20 @@ interface CenterMenuProps {
   onTodo: () => void
   onFocus: () => void
   onHome: () => void
+  wallpapers: string[]
+  onClick?: () => void
 }
 
-export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus, onHome }: CenterMenuProps) {
+export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus, onHome, wallpapers, onClick }: CenterMenuProps) {
   return (
     <div className="center-menu">
-      <button onClick={() => onHome && onHome()} className="link">
+      <button 
+        onClick={() => {
+          onClick?.()
+          onHome && onHome()
+        }}
+        className="link"
+      >
         <span className="link-icon">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -28,7 +36,13 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
         <span className="link-title">Home</span>
       </button>
 
-      <button onClick={() => onTodo && onTodo()} className="link">
+      <button 
+        onClick={() => {
+          onClick?.()
+          onTodo && onTodo()
+        }}
+        className="link"
+      >
         <span className="link-icon">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -50,7 +64,13 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
         <span className="link-title">Todo</span>
       </button>
 
-      <button onClick={() => onMusic && onMusic()} className="link">
+      <button 
+        onClick={() => {
+          onClick?.()
+          onMusic && onMusic()
+        }}
+        className="link"
+      >
         <span className="link-icon">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -67,7 +87,13 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
         <span className="link-title">Music</span>
       </button>
 
-      <button onClick={() => onFocus && onFocus()} className="link">
+      <button 
+        onClick={() => {
+          onClick?.()
+          onFocus && onFocus()
+        }}
+        className="link"
+      >
         <span className="link-icon">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -86,7 +112,11 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
         <span className="link-title">Focus</span>
       </button>
 
-      <WallpaperButton onWallpaperChange={onWallpaperChange} />
+      <WallpaperButton 
+        onWallpaperChange={onWallpaperChange} 
+        wallpapers={wallpapers}
+        onClick={onClick}
+      />
     </div>
   )
 }

@@ -1,31 +1,44 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 
 interface BackgroundMusicPlayerProps {
   url: string
   type: 'youtube' | 'spotify'
   isVisible: boolean
-  onClose?: () => void
   isPlaying: boolean
   onMinimize: () => void
 }
 
-export default function BackgroundMusicPlayer({ url, type, isVisible, onClose, isPlaying, onMinimize }: BackgroundMusicPlayerProps) {
+export default function BackgroundMusicPlayer({ url, type, isVisible, isPlaying, onMinimize }: BackgroundMusicPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [size, setSize] = useState({ width: 480, height: 288 }) // Medium default size
 
   useEffect(() => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       try {
         if (type === 'youtube') {
-          // YouTube iframe API commands
+          // YouTube iframe API commands with better performance
           iframeRef.current.contentWindow.postMessage(
             JSON.stringify({
               event: 'command',
-              func: isPlaying ? 'playVideo' : 'pauseVideo'
+              func: isPlaying ? 'playVideo' : 'pauseVideo',
+              args: []
             }),
             '*'
           )
+          
+          // Additional YouTube optimizations
+          if (isPlaying) {
+            iframeRef.current.contentWindow.postMessage(
+              JSON.stringify({
+                event: 'command',
+                func: 'setPlaybackQuality',
+                args: ['medium']
+              }),
+              '*'
+            )
+          }
         } else {
           // Spotify iframe API commands
           iframeRef.current.contentWindow.postMessage(
@@ -42,10 +55,23 @@ export default function BackgroundMusicPlayer({ url, type, isVisible, onClose, i
     }
   }, [isPlaying, type])
 
-  if (!url || !isVisible) return null
+  if (!url) return null
+
+  // Ensure smooth YouTube playback by preloading
+  const enhancedUrl = type === 'youtube' && url.includes('youtube.com/embed') 
+    ? `${url}&enablejsapi=1&origin=${window.location.origin}&rel=0&controls=1&showinfo=1&iv_load_policy=1&playsinline=1&autoplay=1&mute=0&vq=medium&preload=auto&buffering=1`
+    : url
 
   return (
-    <div className="fixed top-6 right-6 z-30 w-80 h-48 bg-black/30 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden shadow-2xl transition-all duration-300">
+    <div 
+      className={`fixed bottom-20 right-6 z-30 bg-black/30 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 ${
+        isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
+      }`}
+      style={{ 
+        width: size.width, 
+        height: size.height
+      }}
+    >
       <div className="p-3 bg-white/5 border-b border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -55,30 +81,36 @@ export default function BackgroundMusicPlayer({ url, type, isVisible, onClose, i
             <span className="text-white/70 text-xs font-medium capitalize">
               {type}
             </span>
+            
+            {/* Simple Size Buttons */}
+            <div className="flex gap-1 ml-2">
+              <button
+                onClick={() => setSize({ width: 400, height: 240 })}
+                className="px-2 py-1 text-xs bg-white/10 hover:bg-white/20 text-white/70 hover:text-white rounded transition-colors"
+                title="Compact Size"
+              >
+                Compact
+              </button>
+              <button
+                onClick={() => setSize({ width: 600, height: 360 })}
+                className="px-2 py-1 text-xs bg-white/10 hover:bg-white/20 text-white/70 hover:text-white rounded transition-colors"
+                title="Large Size"
+              >
+                Large
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             {/* Minimize Button */}
             <button
               onClick={onMinimize}
               className="text-white/60 hover:text-white transition-colors p-1 hover:bg-white/10 rounded"
-              title="Minimize"
+              title="Minimize to Music Button"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            {/* Close Button */}
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="text-white/60 hover:text-white transition-colors p-1 hover:bg-white/10 rounded"
-                title="Close"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -87,16 +119,22 @@ export default function BackgroundMusicPlayer({ url, type, isVisible, onClose, i
         <iframe
           ref={iframeRef}
           className="w-full h-full"
-          src={url}
+          src={enhancedUrl}
           title={`Background ${type} player`}
           allow={type === 'youtube' 
-            ? "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            ? "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; autoplay=1; fullscreen"
             : "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           }
           referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
+          muted={false}
+          loading="eager"
+          importance="high"
+          preload="auto"
         />
       </div>
+      
+
     </div>
   )
 }

@@ -5,6 +5,7 @@ import EnhancedMusicPlayer from '@/components/EnhancedMusicPlayer'
 import MiniPlayerControl from '@/components/MiniPlayerControl'
 import BackgroundMusicPlayer from '@/components/BackgroundMusicPlayer'
 import CenterMenu from '@/components/CenterMenu'
+import { useSoundEffects } from '@/lib/useSoundEffects'
 
 export default function HomePage() {
   const [timeString, setTimeString] = useState('')
@@ -77,8 +78,18 @@ export default function HomePage() {
   const [newFocusTask, setNewFocusTask] = useState('')
   
   const [wallpapers, setWallpapers] = useState<string[]>([])
+  const [allWallpapers, setAllWallpapers] = useState<string[]>([])
   const [currentWallpaperIndex, setCurrentWallpaperIndex] = useState(0)
   const [wallpaperType, setWallpaperType] = useState<'live' | 'photo'>('live')
+  
+  // Sound effects
+  const { playClickSound, playExitSound, playToggleSound } = useSoundEffects()
+  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(false)
+  
+  // Wrapper functions that check if sound effects are enabled
+  const playClickSoundIfEnabled = () => soundEffectsEnabled && playClickSound()
+  const playExitSoundIfEnabled = () => soundEffectsEnabled && playExitSound()
+  const playToggleSoundIfEnabled = () => soundEffectsEnabled && playToggleSound()
   
   const quotes = useMemo(
     () => [
@@ -171,7 +182,10 @@ export default function HomePage() {
       const response = await fetch('/api/wallpapers')
       if (response.ok) {
         const data = await response.json()
+        // Set default wallpapers (only live wallpapers for page reload)
         setWallpapers(data.wallpapers)
+        // Store all wallpapers for wallpaper selection
+        setAllWallpapers(data.allWallpapers || [])
         
         if (data.wallpapers.length > 0) {
           const randomIndex = Math.floor(Math.random() * data.wallpapers.length)
@@ -193,9 +207,20 @@ export default function HomePage() {
 
   const handleWallpaperChange = (url: string) => {
     setBgUrl(url)
-    setCurrentWallpaperIndex(wallpapers.indexOf(url))
     
-    if (url.match(/\.(mp4|webm|mov)$/i)) {
+    // Check if it's a live wallpaper (for slideshow compatibility)
+    const isLiveWallpaper = url.match(/\.(mp4|webm|mov)$/i)
+    
+    if (isLiveWallpaper) {
+      // For live wallpapers, find index in the slideshow wallpapers
+      const index = wallpapers.indexOf(url)
+      setCurrentWallpaperIndex(index >= 0 ? index : 0)
+    } else {
+      // For photo wallpapers, set a special index to indicate it's not in slideshow
+      setCurrentWallpaperIndex(-1)
+    }
+    
+    if (isLiveWallpaper) {
       setBgMode('video')
     } else {
       setBgMode('image')
@@ -219,7 +244,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!mounted) return
     const clock = setInterval(() => setTimeString(new Date().toLocaleTimeString()), 1000)
-    const quoteTimer = setInterval(() => setQuoteIndex((i) => (i + 1) % quotes.length), 7000)
+    const quoteTimer = setInterval(() => setQuoteIndex((i) => (i + 1) % quotes.length), 8000)
     return () => {
       clearInterval(clock)
       clearInterval(quoteTimer)
@@ -233,6 +258,7 @@ export default function HomePage() {
     const id = setInterval(() => {
       i += 1
       setTyped(target.slice(0, i))
+              // No typing sound - just advance character
       if (i >= target.length) clearInterval(id)
     }, 60)
     return () => clearInterval(id)
@@ -245,7 +271,7 @@ export default function HomePage() {
     const getSlideshowSpeed = () => {
       switch (slideshowSpeed) {
         case 'slow': return 60000    // 60 seconds
-        case 'medium': return 55000  // 15 seconds
+        case 'medium': return 30000  // 30 seconds
         case 'fast': return 10000     // 10seconds
         default: return 10000
       }
@@ -266,12 +292,7 @@ export default function HomePage() {
         
         const newWallpaper = wallpapers[newIndex]
         setBgUrl(newWallpaper)
-        
-        if (newWallpaper.match(/\.(mp4|webm|mov)$/i)) {
-    setBgMode('video')
-        } else {
-          setBgMode('image')
-        }
+        setBgMode('video')
         
         return newIndex
       })
@@ -280,13 +301,23 @@ export default function HomePage() {
     return () => clearInterval(slideshowTimer)
   }, [slideshowEnabled, wallpapers.length, slideshowRandomized, slideshowSpeed])
 
+  // Ensure individual wallpapers loop when slideshow is disabled
+  useEffect(() => {
+    if (slideshowEnabled || !bgUrl || bgMode !== 'video') return
+    
+    // When slideshow is disabled and we have a video wallpaper, ensure it loops
+    // The video element already has the 'loop' attribute, but we need to ensure
+    // the slideshow timer doesn't interfere with individual wallpaper loops
+    setCurrentWallpaperIndex(-1) // Mark as not in slideshow mode
+  }, [slideshowEnabled, bgUrl, bgMode])
+
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
       {/* Background */}
-      {bgMode === 'video' && (slideshowEnabled ? wallpapers[currentWallpaperIndex] : bgUrl) ? (
-        <video className="video-bg" autoPlay muted loop playsInline src={slideshowEnabled ? wallpapers[currentWallpaperIndex] : bgUrl} />
-      ) : bgMode === 'image' && (slideshowEnabled ? wallpapers[currentWallpaperIndex] : bgUrl) ? (
-        <img className="video-bg object-cover" src={slideshowEnabled ? wallpapers[currentWallpaperIndex] : bgUrl} alt="background" />
+      {bgMode === 'video' && bgUrl ? (
+        <video className="video-bg" autoPlay muted loop playsInline src={bgUrl} />
+      ) : bgMode === 'image' && bgUrl ? (
+        <img className="video-bg object-cover" src={bgUrl} alt="background" />
       ) : (
         <div className="video-bg bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
           <div className="text-center text-white/60">
@@ -362,15 +393,17 @@ export default function HomePage() {
         
         <div className="flex items-center gap-3">
           <button
-            onClick={() => {
-              if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-                setIsFullscreen(true);
-              } else {
-                document.exitFullscreen();
-                setIsFullscreen(false);
-              }
-            }}
+                          onClick={() => {
+                playClickSoundIfEnabled()
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen();
+                  setIsFullscreen(true);
+                } else {
+                  document.exitFullscreen();
+                  setIsFullscreen(false);
+                }
+              }}
+
             className="w-10 h-10 rounded-full bg-white/10 border border-white/20 backdrop-blur flex items-center justify-center transition-all duration-200 hover:bg-white/20"
           >
             {isFullscreen ? (
@@ -385,7 +418,11 @@ export default function HomePage() {
           </button>
 
           <button 
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={() => {
+              playClickSoundIfEnabled()
+              setShowSettings(!showSettings)
+            }}
+
             className="setting-btn"
           >
             <span className="bar bar1"></span>
@@ -397,7 +434,11 @@ export default function HomePage() {
 
       {/* Settings Panel */}
       {showSettings && (
-        <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-4 min-w-[280px] z-[100] backdrop-blur-sm">
+                  <div className="fixed inset-0 z-[99] bg-black/20" onClick={() => {
+            playExitSoundIfEnabled()
+            setShowSettings(false)
+          }}>
+          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-4 min-w-[280px] z-[100] backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
           <div className="text-white text-sm font-medium mb-4">Settings</div>
           
           <div className="flex items-center justify-between mb-3">
@@ -530,6 +571,46 @@ export default function HomePage() {
               ))}
             </div>
           </div>
+
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-white/80 text-xs">Music Player</span>
+            <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
+              <button
+                onClick={() => setShowBackgroundPlayer(!showBackgroundPlayer)}
+                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
+                  showBackgroundPlayer ? 'bg-white/30' : 'bg-white/20'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white/90 transition-all duration-200 ${
+                    showBackgroundPlayer ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-white/80 text-xs">Sound Effects</span>
+            <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
+              <button
+                onClick={() => {
+                  playToggleSoundIfEnabled()
+                  setSoundEffectsEnabled(!soundEffectsEnabled)
+                }}
+                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
+                  soundEffectsEnabled ? 'bg-white/30' : 'bg-white/20'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white/90 transition-all duration-200 ${
+                    soundEffectsEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
         </div>
       )}
 
@@ -581,7 +662,6 @@ export default function HomePage() {
               <div className="space-y-4 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                 {tasks.length === 0 ? (
                   <div className="text-center text-white/60 py-12">
-                    <div className="text-6xl mb-4">📝</div>
                     <div className="text-xl">No tasks yet. Start building your success!</div>
                   </div>
                 ) : (
@@ -810,6 +890,9 @@ export default function HomePage() {
                 setShowTodo(false)
                 setShowFocus(false)
               }}
+              wallpapers={allWallpapers}
+
+              onClick={playClickSoundIfEnabled}
             />
         </div>
       </footer>
@@ -817,7 +900,10 @@ export default function HomePage() {
 
       {/* Music Player */}
       {showMusic && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-black/60 p-4" onClick={handleMusicTabClose}>
+        <div className="fixed inset-0 z-30 grid place-items-center bg-black/60 p-4" onClick={() => {
+          playExitSoundIfEnabled()
+          handleMusicTabClose()
+        }}>
           <div onClick={(e) => e.stopPropagation()}>
             <EnhancedMusicPlayer 
               onClose={handleMusicTabClose} 
@@ -834,36 +920,56 @@ export default function HomePage() {
         url={backgroundMusicUrl}
         type={backgroundMusicType}
         isVisible={isMusicPlaying && showBackgroundPlayer && !isMusicMinimized}
-        onClose={() => setShowBackgroundPlayer(false)}
         isPlaying={isMusicPlaying}
         onMinimize={() => setIsMusicMinimized(true)}
       />
 
-      {/* Minimized Music Button */}
-      {isMusicPlaying && isMusicMinimized && (
-        <div className="fixed top-6 right-6 z-30">
-          <button
-            onClick={() => setIsMusicMinimized(false)}
-            className={`w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl transition-all duration-300 hover:scale-110 ${
-              isMusicPlaying ? 'hover:bg-black/60' : ''
-            }`}
-            title="Restore Music Player"
-          >
-            <div className="w-full h-full flex items-center justify-center">
-              {isMusicPlaying ? (
-                <div className="relative">
+            {/* Music Player Button - Only visible when music player is enabled in settings */}
+      {showBackgroundPlayer && (
+        <div className="fixed bottom-6 right-6 z-30">
+              <button
+          onClick={() => {
+            if (isMusicPlaying && isMusicMinimized) {
+              // Restore the background player
+              setIsMusicMinimized(false)
+            } else if (isMusicPlaying && showBackgroundPlayer) {
+              // Minimize the background player
+              setIsMusicMinimized(true)
+            } else if (isMusicPlaying && !showBackgroundPlayer) {
+              // Show the background player
+              setShowBackgroundPlayer(true)
+              setIsMusicMinimized(false)
+            } else {
+              // Open the music tab
+              setShowMusic(true)
+            }
+          }}
+          className={`w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl transition-all duration-300 hover:scale-110 ${
+            isMusicPlaying ? 'hover:bg-black/60' : 'hover:bg-black/60'
+          }`}
+          title={isMusicPlaying ? (isMusicMinimized ? `Restore Music Player - ${currentTrack?.title || 'Now Playing'}` : showBackgroundPlayer ? `Minimize Music Player - ${currentTrack?.title || 'Now Playing'}` : `Show Music Player - ${currentTrack?.title || 'Now Playing'}`) : "Open Music Player"}
+        >
+          <div className="w-full h-full flex items-center justify-center">
+            {isMusicPlaying ? (
+              <div className="relative">
+                {currentTrack?.platform === 'youtube' ? (
                   <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z"/>
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                   </svg>
-                  {/* Animated pulse ring when playing */}
-                  <div className="absolute inset-0 rounded-full border-2 border-white/30 animate-ping"></div>
-                </div>
-              ) : (
-                <svg className="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
+                ) : (
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.6-1.061.6-4.17 0-7.46-1.5-9.41-3.9 2.82 1.86 5.46 2.7 8.87 2.7 1.62 0 3.26-.21 4.99-.6.46-.14.89-.48 1.08-.9.2-.43.14-.9-.09-1.27-.23-.37-.66-.6-1.08-.6-.48 0-.87.21-1.08.6-.2.43-.14.9.09 1.27.23.37.66.6 1.08.6z"/>
                 </svg>
-              )}
+                )}
+                {/* Animated pulse ring when playing */}
+                <div className="absolute inset-0 rounded-full border-2 border-white/30 animate-ping"></div>
             </div>
+            ) : (
+              <svg className="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            )}
+          </div>
           </button>
         </div>
       )}

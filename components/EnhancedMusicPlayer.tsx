@@ -65,7 +65,7 @@ export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, o
     // Generate embed URL directly
     let embedUrl = ''
     if (detected.type === 'youtube') {
-      embedUrl = `https://www.youtube.com/embed/${detected.id}?autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&showinfo=0`
+      embedUrl = `https://www.youtube.com/embed/${detected.id}?autoplay=1&mute=0&controls=1&rel=0&showinfo=1&iv_load_policy=1&vq=medium&preload=auto&buffering=1`
     } else {
       // Determine Spotify content type
       const isTrack = url.includes('/track/')
@@ -96,7 +96,7 @@ export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, o
     if (!currentContent) return ''
     
     if (currentContent.type === 'youtube') {
-      return `https://www.youtube.com/embed/${currentContent.id}?autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&showinfo=0`
+      return `https://www.youtube.com/embed/${currentContent.id}?autoplay=1&mute=0&controls=1&rel=0&showinfo=1&iv_load_policy=1&vq=medium&preload=auto&buffering=1`
     } else {
       // Determine Spotify content type
       const isTrack = currentContent.url.includes('/track/')
@@ -159,7 +159,7 @@ export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, o
             />
             <button
               type="submit"
-              className="px-6 py-3 bg-gradient-to-r from-red-500 to-green-500 hover:from-red-600 hover:to-green-600 text-white rounded-lg transition-all duration-300 font-medium text-lg hover:scale-105"
+              className="px-6 py-3 bg-white/20 hover:bg-white/30 border border-white/20 text-white rounded-lg transition-all duration-300 font-medium text-lg hover:scale-105"
             >
               Play
             </button>
@@ -194,11 +194,14 @@ export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, o
               src={getEmbedUrl()}
               title={`${currentContent.type} player`}
               allow={currentContent.type === 'youtube' 
-                ? "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                ? "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                 : "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
               }
               referrerPolicy="strict-origin-when-cross-origin"
               allowFullScreen
+              loading="eager"
+              importance="high"
+              preload="auto"
             />
           </div>
         </div>
@@ -207,7 +210,7 @@ export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, o
       {/* Help Text */}
       <div className="mt-6 text-center">
         <p className="text-white/60 text-sm">
-          💡 Supports YouTube videos and Spotify tracks, playlists, and albums
+          Supports YouTube videos and Spotify tracks, playlists, and albums
         </p>
       </div>
     </div>
