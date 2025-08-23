@@ -1,14 +1,57 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
-export default function WallpaperButton({ onWallpaperChange }: { onWallpaperChange: (url: string) => void }) {
+export default function WallpaperButton({ onWallpaperChange }: { onWallpaperChange?: (url: string) => void }) {
   const [isOpen, setIsOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'live' | 'photo'>('live')
+  const [wallpapers, setWallpapers] = useState<Array<{
+    key: string
+    label: string
+    url: string
+    thumbnail: string
+    type: 'video' | 'image'
+  }>>([])
+  const [loading, setLoading] = useState(true)
+
+  // Load wallpapers from API
+  useEffect(() => {
+    const loadWallpapers = async () => {
+      try {
+        const response = await fetch('/api/wallpapers')
+        if (response.ok) {
+          const data = await response.json()
+          const formattedWallpapers = data.wallpapers.map((url: string, index: number) => {
+            const filename = url.split('/').pop() || ''
+            const name = filename.split('.')[0] || 'Unknown'
+            const type = url.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image'
+            
+            return {
+              key: `wallpaper-${index}`,
+              label: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              url: url,
+              thumbnail: url,
+              type: type
+            }
+          })
+          setWallpapers(formattedWallpapers)
+        }
+      } catch (error) {
+        console.error('Error loading wallpapers:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadWallpapers()
+  }, [])
 
   const handleThemeSelect = (url: string, label: string) => {
     console.log('Wallpaper selected:', label, url)
-    onWallpaperChange(url)
+    if (onWallpaperChange) {
+      onWallpaperChange(url)
+    }
     setIsOpen(false)
     setPreviewUrl(null)
   }
@@ -18,38 +61,9 @@ export default function WallpaperButton({ onWallpaperChange }: { onWallpaperChan
     setIsOpen(!isOpen)
   }
 
-  const wallpapers = [
-    {
-      key: "autumn-fuji",
-      label: "Autumn Fuji",
-      url: "/wallpaper/autumn-fuji-moewalls-com.mp4",
-      thumbnail: "/wallpaper/autumn-fuji-moewalls-com.mp4"
-    },
-    {
-      key: "cherry-blossom",
-      label: "Cherry Blossom",
-      url: "/wallpaper/cherry-blossom-tree-on-volcano-moewalls-com.mp4",
-      thumbnail: "/wallpaper/cherry-blossom-tree-on-volcano-moewalls-com.mp4"
-    },
-    {
-      key: "east-town",
-      label: "East Town",
-      url: "/wallpaper/japanese-town-cloudy-day-moewalls-com.mp4",
-      thumbnail: "/wallpaper/japanese-town-cloudy-day-moewalls-com.mp4"
-    },
-    {
-      key: "spring",
-      label: "Spring",
-      url: "/wallpaper/torii-gate-fuji-mountain-sakura-lake-moewalls-com.mp4",
-      thumbnail: "/wallpaper/torii-gate-fuji-mountain-sakura-lake-moewalls-com.mp4"
-    },
-    {
-      key: "winter-night",
-      label: "Winter Night",
-      url: "/wallpaper/winter-night-train-moewalls-com.mp4",
-      thumbnail: "/wallpaper/winter-night-train-moewalls-com.mp4"
-    }
-  ]
+  // Filter wallpapers by type
+  const liveWallpapers = wallpapers.filter(w => w.type === 'video')
+  const photoWallpapers = wallpapers.filter(w => w.type === 'image')
 
   return (
     <div className="relative">
@@ -60,54 +74,127 @@ export default function WallpaperButton({ onWallpaperChange }: { onWallpaperChan
         <span className="link-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" fill="currentColor" viewBox="0 0 256 256">
             <rect width="256" height="256" fill="none"></rect>
-            <path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM80,200a16,16,0,0,1-16-16V88a16,16,0,0,1,16-16h96a16,16,0,0,1,16,16v96a16,16,0,0,1-16,16Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"></path>
-            <circle cx="88" cy="72" r="8" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"></circle>
+            <rect x="40" y="40" width="176" height="176" rx="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></rect>
+            <path d="M40,168l32-32,32,32,48-48,32,32,32-32v48H40Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></path>
+            <circle cx="100" cy="92" r="12" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></circle>
           </svg>
         </span>
-        <span className="link-title">Wallpaper</span>
+        <span className="link-title">Theme</span>
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 bg-black/90 border border-white/20 rounded-lg p-3 min-w-[280px] z-[100]">
+        <div className="absolute bottom-full left-0 mb-2 bg-black/30 border border-white/20 rounded-lg p-3 min-w-[320px] z-[100] backdrop-blur-sm">
           <div className="text-white text-sm font-medium mb-3">Select Wallpaper</div>
           
-          {/* Preview Section */}
-          {previewUrl && (
-            <div className="mb-3 p-2 bg-white/10 rounded-lg">
-              <div className="text-white text-xs mb-2">Preview:</div>
-              <video 
-                src={previewUrl} 
-                className="w-full h-24 object-cover rounded"
-                autoPlay 
-                muted 
-                loop 
-                playsInline
-              />
-            </div>
-          )}
-          
-          <div className="space-y-2">
-            {wallpapers.map((wallpaper) => (
-              <button
-                key={wallpaper.key}
-                onClick={() => handleThemeSelect(wallpaper.url, wallpaper.label)}
-                onMouseEnter={() => setPreviewUrl(wallpaper.url)}
-                onMouseLeave={() => setPreviewUrl(null)}
-                className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-gray-300 hover:bg-white/10 hover:text-white"
-              >
-                <div className="w-12 h-8 bg-gray-800 rounded overflow-hidden flex-shrink-0">
-                  <video 
-                    src={wallpaper.thumbnail} 
-                    className="w-full h-full object-cover"
-                    muted 
-                    loop 
-                    playsInline
-                  />
-                </div>
-                <span className="text-left">{wallpaper.label}</span>
-              </button>
-            ))}
+          {/* Tab Navigation */}
+          <div className="flex mb-3 border-b border-white/20">
+            <button
+              onClick={() => setActiveTab('live')}
+              className={`px-3 py-2 text-xs font-medium transition-colors ${
+                activeTab === 'live' 
+                  ? 'text-white border-b-2 border-white' 
+                  : 'text-white/60 hover:text-white/80'
+              }`}
+            >
+              Live ({liveWallpapers.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('photo')}
+              className={`px-3 py-2 text-xs font-medium transition-colors ${
+                activeTab === 'photo' 
+                  ? 'text-white border-b-2 border-white' 
+                  : 'text-white/60 hover:text-white/80'
+              }`}
+            >
+              Photo ({photoWallpapers.length})
+            </button>
           </div>
+
+          {loading ? (
+            <div className="text-white/60 text-sm">Loading wallpapers...</div>
+          ) : (
+            <>
+              {/* Preview Section */}
+              {previewUrl && (
+                <div className="mb-3 p-2 bg-white/10 rounded-lg">
+                  {previewUrl.match(/\.(mp4|webm|mov)$/i) ? (
+                    <video 
+                      src={previewUrl} 
+                      className="w-full h-28 object-cover rounded"
+                      autoPlay 
+                      muted 
+                      loop 
+                      playsInline
+                    />
+                  ) : (
+                    <img 
+                      src={previewUrl} 
+                      className="w-full h-28 object-cover rounded"
+                      alt="Preview"
+                    />
+                  )}
+                </div>
+              )}
+              
+              {/* Live Wallpapers Tab */}
+              {activeTab === 'live' && (
+                <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                  {liveWallpapers.length === 0 ? (
+                    <div className="text-white/40 text-sm text-center py-4">No live wallpapers found</div>
+                  ) : (
+                    liveWallpapers.map((wallpaper) => (
+                      <button
+                        key={wallpaper.key}
+                        onClick={() => handleThemeSelect(wallpaper.url, wallpaper.label)}
+                        onMouseEnter={() => setPreviewUrl(wallpaper.url)}
+                        onMouseLeave={() => setPreviewUrl(null)}
+                        className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
+                      >
+                        <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
+                          <video 
+                            src={wallpaper.thumbnail} 
+                            className="w-full h-full object-cover"
+                            muted 
+                            loop 
+                            playsInline
+                          />
+                        </div>
+                        <span className="text-left text-xs">{wallpaper.label}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Photo Wallpapers Tab */}
+              {activeTab === 'photo' && (
+                <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                  {photoWallpapers.length === 0 ? (
+                    <div className="text-white/40 text-sm text-center py-4">No photo wallpapers found</div>
+                  ) : (
+                    photoWallpapers.map((wallpaper) => (
+                      <button
+                        key={wallpaper.key}
+                        onClick={() => handleThemeSelect(wallpaper.url, wallpaper.label)}
+                        onMouseEnter={() => setPreviewUrl(wallpaper.url)}
+                        onMouseLeave={() => setPreviewUrl(null)}
+                        className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
+                      >
+                        <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
+                          <img 
+                            src={wallpaper.thumbnail} 
+                            className="w-full h-full object-cover"
+                            alt={wallpaper.label}
+                          />
+                        </div>
+                        <span className="text-left text-xs">{wallpaper.label}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

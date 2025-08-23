@@ -21,6 +21,24 @@
   background: rgba(255, 255, 255, 0.5);
 }
 
+/* Custom scrollbar for wallpaper list */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 /* Custom audio progress bar */
 .slider {
   -webkit-appearance: none;
@@ -94,53 +112,155 @@
 
 /* Center menu */
 .center-menu {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.menu {
+  border: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
-  gap: 1rem;
-  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  position: relative;
+  z-index: 50;
 }
 
 .link {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  justify-content: center;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-radius: 12px;
-  transition: all 0.2s;
-  color: rgba(255, 255, 255, 0.9);
+  width: 70px;
+  height: 50px;
+  border-radius: 8px;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  transform-origin: center left;
+  transition: width 0.2s ease-in;
   text-decoration: none;
-  min-width: 80px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
 }
 
-.link:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
+.link:before {
+  position: absolute;
+  z-index: -1;
+  content: "";
+  display: block;
+  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  transform: translateX(100%);
+  transition: transform 0.2s ease-in;
+  transform-origin: center right;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.link:hover,
+.link:focus {
+  outline: 0;
+  width: 130px;
   color: rgba(255, 255, 255, 1);
-  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.link:hover:before,
+.link:focus:before,
+.link:hover .link-title,
+.link:focus .link-title {
+  transform: translateX(0);
+  opacity: 1;
 }
 
 .link-icon {
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 28px;
+  height: 28px;
+  display: block;
+  flex-shrink: 0;
+  left: 18px;
+  position: absolute;
+}
+
+.link-icon svg {
+  width: 28px;
+  height: 28px;
 }
 
 .link-title {
+  transform: translateX(100%);
+  transition: transform 0.2s ease-in;
+  transform-origin: center right;
+  display: block;
+  text-align: center;
+  text-indent: 28px;
+  width: 100%;
   font-size: 0.75rem;
   font-weight: 500;
-  text-align: center;
   line-height: 1;
+}
+
+/* Settings Button - From Uiverse.io by vinodjangid07 */
+.setting-btn {
+  width: 45px;
+  height: 45px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  transition: all 0.3s ease;
+  box-shadow: 0px 0px 0px 2px rgba(255, 255, 255, 0.1);
+}
+
+.setting-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.bar {
+  width: 50%;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.bar::before {
+  content: "";
+  width: 2px;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.8);
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  transition: all 0.3s;
+  box-shadow: 0px 0px 5px rgba(255, 255, 255, 0.3);
+}
+
+.bar1::before {
+  transform: translateX(-4px);
+}
+
+.bar2::before {
+  transform: translateX(4px);
+}
+
+.setting-btn:hover .bar1::before {
+  transform: translateX(4px);
+}
+
+.setting-btn:hover .bar2::before {
+  transform: translateX(-4px);
 }
 
 
