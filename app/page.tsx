@@ -8,7 +8,6 @@ import BugReportPopup from '@/components/BugReportPopup'
 import { useSoundEffects } from '@/lib/useSoundEffects'
 import Tooltip from '@/components/Tooltip'
 import { wallpapers as staticWallpapers, getRandomWallpaper, getLiveWallpapers, getPhotoWallpapers } from '@/lib/wallpaperData'
-import { getWallpaperUrl } from '@/lib/s3'
 
 export default function HomePage() {
   const [timeString, setTimeString] = useState('')
@@ -188,6 +187,27 @@ export default function HomePage() {
     }
   }
 
+  // Helper function to get signed URL from API
+  const getSignedUrl = async (s3Key: string): Promise<string> => {
+    try {
+      const response = await fetch('/api/wallpapers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ s3Key })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to get signed URL')
+      }
+      
+      const data = await response.json()
+      return data.signedUrl
+    } catch (error) {
+      console.error('Error getting signed URL:', error)
+      throw error
+    }
+  }
+
   // Wallpaper functions
   const loadWallpapers = useCallback(async () => {
     try {
@@ -197,10 +217,10 @@ export default function HomePage() {
       
       // Convert S3 keys to signed URLs
       const liveWallpaperUrls = await Promise.all(
-        liveWallpapers.map(async (w) => await getWallpaperUrl(w.url))
+        liveWallpapers.map(async (w) => await getSignedUrl(w.url))
       )
       const photoWallpaperUrls = await Promise.all(
-        photoWallpapers.map(async (w) => await getWallpaperUrl(w.url))
+        photoWallpapers.map(async (w) => await getSignedUrl(w.url))
       )
       
       // Set default wallpapers (only live wallpapers for page reload)
@@ -228,8 +248,7 @@ export default function HomePage() {
   const handleWallpaperChange = async (s3Key: string) => {
     try {
       // Convert S3 key to signed URL
-      const signedUrl = await getWallpaperUrl(s3Key)
-      setBgUrl(signedUrl)
+      const signedUrl = await getSignedUrl(s3Key)
       
       // Check if it's a live wallpaper (for slideshow compatibility)
       const isLiveWallpaper = s3Key.match(/\.(mp4|webm|mov)$/i)
@@ -249,6 +268,8 @@ export default function HomePage() {
       } else {
         setBgMode('image')
       }
+      
+      setBgUrl(signedUrl)
     } catch (error) {
       console.error('Error loading wallpaper:', error)
     }
@@ -319,7 +340,13 @@ export default function HomePage() {
         
         const newWallpaper = wallpapers[newIndex]
         setBgUrl(newWallpaper)
-    setBgMode('video')
+        
+        // Determine if it's a video or image based on file extension
+        if (newWallpaper.match(/\.(mp4|webm|mov)$/i)) {
+          setBgMode('video')
+        } else {
+          setBgMode('image')
+        }
         
         return newIndex
       })
@@ -1235,7 +1262,7 @@ export default function HomePage() {
                 setShowFocus(false)
                 setShowTodo(false)
               }}
-              wallpapers={allWallpapers}
+              wallpapers={getLiveWallpapers().map(w => w.url).concat(getPhotoWallpapers().map(w => w.url))}
               buttonSize={buttonSize}
               onClick={playClickSoundIfEnabled}
             />
