@@ -208,7 +208,7 @@ export default function HomePage() {
     }
   }
 
-  // Wallpaper functions - Progressive loading for maximum performance
+  // Wallpaper functions - Ultra-fast loading: show UI instantly, load video in background
   const loadWallpapers = useCallback(async () => {
     try {
       // Get wallpaper data (just the keys, not URLs yet)
@@ -220,31 +220,32 @@ export default function HomePage() {
       setAllWallpapers([...liveWallpapers.map(w => w.url), ...photoWallpapers.map(w => w.url)])
       
       if (liveWallpapers.length > 0) {
-        // Only load ONE random wallpaper initially (progressive loading)
+        // Show UI instantly with loading state
         const randomIndex = Math.floor(Math.random() * liveWallpapers.length)
-        const randomWallpaperKey = liveWallpapers[randomIndex].url
-        
-        // Convert only this one to signed URL
-        const randomWallpaperUrl = await getSignedUrl(randomWallpaperKey)
-        
-        setBgUrl(randomWallpaperUrl)
         setCurrentWallpaperIndex(randomIndex)
         setBgMode('video')
         
-        // Preload next 2 wallpapers in background for smooth slideshow
-        setTimeout(async () => {
-          try {
-            const nextIndex = (randomIndex + 1) % liveWallpapers.length
-            const nextWallpaperKey = liveWallpapers[nextIndex].url
-            await getSignedUrl(nextWallpaperKey) // Preload but don't set
-            
-            const prevIndex = (randomIndex - 1 + liveWallpapers.length) % liveWallpapers.length
-            const prevWallpaperKey = liveWallpapers[prevIndex].url
-            await getSignedUrl(prevWallpaperKey) // Preload but don't set
-          } catch (error) {
-            // Silent preload, don't break main functionality
-          }
-        }, 2000) // Wait 2 seconds then preload
+        // Show loading indicator
+        setBgUrl('') // Clear background temporarily
+        
+        // Load wallpaper in background (non-blocking)
+        const randomWallpaperKey = liveWallpapers[randomIndex].url
+        getSignedUrl(randomWallpaperKey).then(randomWallpaperUrl => {
+          setBgUrl(randomWallpaperUrl)
+        }).catch(error => {
+          console.error('Error loading wallpaper:', error)
+          // Fallback to default background
+          setBgMode('image')
+          setBgUrl('')
+        })
+        
+        // Preload next 2 wallpapers immediately in background
+        Promise.all([
+          getSignedUrl(liveWallpapers[(randomIndex + 1) % liveWallpapers.length].url),
+          getSignedUrl(liveWallpapers[(randomIndex - 1 + liveWallpapers.length) % liveWallpapers.length].url)
+        ]).catch(() => {
+          // Silent preload, don't break main functionality
+        })
       }
     } catch (error) {
       console.error('Error loading wallpapers:', error)
@@ -439,8 +440,18 @@ export default function HomePage() {
       ) : (
         <div className="video-bg bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
           <div className="text-center text-white/60">
-            <div className="text-6xl mb-4">🎨</div>
-            <div className="text-xl font-medium mb-2">No Wallpapers Available</div>
+            {bgMode === 'video' && !bgUrl ? (
+              <>
+                <div className="text-6xl mb-4 animate-spin">⏳</div>
+                <div className="text-xl font-medium mb-2">Loading Wallpaper...</div>
+                <div className="text-sm text-white/40">This will take just a few seconds</div>
+              </>
+            ) : (
+              <>
+                <div className="text-6xl mb-4">🎨</div>
+                <div className="text-xl font-medium mb-2">No Wallpapers Available</div>
+              </>
+            )}
           </div>
         </div>
       )}
