@@ -108,6 +108,19 @@
   filter: brightness(1.2);
 }
 
+/* Smooth wallpaper transitions */
+.video-bg {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.video-bg[src=""], .video-bg:not([src]) {
+  opacity: 0;
+}
+
+.video-bg[src]:not([src=""]) {
+  opacity: 1;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

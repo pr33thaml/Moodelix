@@ -27,6 +27,27 @@ export default function WallpaperButton({
   }>>([])
   const [loading, setLoading] = useState(false)
 
+  // Helper function to get signed URL from API
+  const getSignedUrl = async (s3Key: string): Promise<string> => {
+    try {
+      const response = await fetch('/api/wallpapers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ s3Key })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to get signed URL')
+      }
+      
+      const data = await response.json()
+      return data.signedUrl
+    } catch (error) {
+      console.error('Error getting signed URL:', error)
+      throw error
+    }
+  }
+
   // Format wallpapers from prop
   useEffect(() => {
     if (wallpapers && wallpapers.length > 0) {
@@ -185,14 +206,35 @@ export default function WallpaperButton({
                       <button
                         key={wallpaper.key}
                         onClick={() => handleThemeSelect(wallpaper.url, wallpaper.label)}
-                        onMouseEnter={() => setPreviewUrl(wallpaper.url)}
+                        onMouseEnter={async () => {
+                          try {
+                            // Get signed URL for preview
+                            const signedUrl = await getSignedUrl(wallpaper.url)
+                            setPreviewUrl(signedUrl)
+                          } catch (error) {
+                            console.error('Error loading preview:', error)
+                            setPreviewUrl('loading')
+                          }
+                        }}
                         onMouseLeave={() => setPreviewUrl(null)}
                         className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
                       >
                         <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
-                          <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
-                            <span className="text-white/60 text-xs">🎬</span>
-                          </div>
+                          {wallpaper.thumbnail && wallpaper.thumbnail !== wallpaper.url ? (
+                            // Use actual thumbnail if available
+                            <img 
+                              src={wallpaper.thumbnail} 
+                              className="w-full h-full object-cover"
+                              alt={wallpaper.label}
+                            />
+                          ) : (
+                            // Show placeholder with type icon
+                            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+                              <span className="text-white/60 text-xs">
+                                {wallpaper.type === 'video' ? '🎬' : '📷'}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <span className="text-left text-xs">{wallpaper.label}</span>
                       </button>
@@ -208,19 +250,38 @@ export default function WallpaperButton({
                     <div className="text-white/40 text-sm text-center py-4">No photo wallpapers found</div>
                   ) : (
                     photoWallpapers.map((wallpaper) => (
-                      <button
+                                              <button
                         key={wallpaper.key}
                         onClick={() => handleThemeSelect(wallpaper.url, wallpaper.label)}
-                        onMouseEnter={() => setPreviewUrl(wallpaper.url)}
+                        onMouseEnter={async () => {
+                          try {
+                            // Get signed URL for preview
+                            const signedUrl = await getSignedUrl(wallpaper.url)
+                            setPreviewUrl(signedUrl)
+                          } catch (error) {
+                            console.error('Error loading preview:', error)
+                            setPreviewUrl('loading')
+                          }
+                        }}
                         onMouseLeave={() => setPreviewUrl(null)}
                         className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
                       >
                         <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
-                          <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
-                            <span className="text-white/60 text-xs">
-                              {wallpaper.type === 'video' ? '🎬' : '📷'}
-                            </span>
-                          </div>
+                          {wallpaper.thumbnail && wallpaper.thumbnail !== wallpaper.url ? (
+                            // Use actual thumbnail if available
+                            <img 
+                              src={wallpaper.thumbnail} 
+                              className="w-full h-full object-cover"
+                              alt={wallpaper.label}
+                            />
+                          ) : (
+                            // Show placeholder with type icon
+                            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+                              <span className="text-white/60 text-xs">
+                                {wallpaper.type === 'video' ? '🎬' : '📷'}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <span className="text-left text-xs">{wallpaper.label}</span>
                       </button>

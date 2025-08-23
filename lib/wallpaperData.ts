@@ -17,7 +17,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Grand Theft Auto VI',
     type: 'video',
     url: 'live-wallpapers/grand-theft-auto-vi.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=GTA+VI',
+    thumbnail: 'live-wallpapers/grand-theft-auto-vi.mp4',
     category: 'live'
   },
   {
@@ -25,7 +25,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Minecraft Autumn Mountains',
     type: 'video',
     url: 'live-wallpapers/minecraft-autumn-mountains.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Minecraft',
+    thumbnail: 'live-wallpapers/minecraft-autumn-mountains.mp4',
     category: 'live'
   },
   {
@@ -33,7 +33,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Cyberpunk',
     type: 'video',
     url: 'live-wallpapers/cyberpunk.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Cyberpunk',
+    thumbnail: 'live-wallpapers/cyberpunk.mp4',
     category: 'live'
   },
   {
@@ -41,7 +41,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Lilac Field at Night',
     type: 'video',
     url: 'live-wallpapers/lilac-field-at-night-minecraft.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Lilac+Field',
+    thumbnail: 'live-wallpapers/lilac-field-at-night-minecraft.mp4',
     category: 'live'
   },
   {
@@ -49,7 +49,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Scarlet Rock Shrine',
     type: 'video',
     url: 'live-wallpapers/scarlet-rock-shrine-ghost-of-tsushima.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Scarlet+Rock',
+    thumbnail: 'live-wallpapers/scarlet-rock-shrine-ghost-of-tsushima.mp4',
     category: 'live'
   },
   {
@@ -57,7 +57,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Cartethiya',
     type: 'video',
     url: 'live-wallpapers/cartethiya.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Cartethiya',
+    thumbnail: 'live-wallpapers/cartethiya.mp4',
     category: 'live'
   },
   {
@@ -65,7 +65,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Ferrari Testarossa',
     type: 'video',
     url: 'live-wallpapers/ferrari-testarossa-highway-cruise.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Ferrari',
+    thumbnail: 'live-wallpapers/ferrari-testarossa-highway-cruise.mp4',
     category: 'live'
   },
   {
@@ -73,7 +73,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Sunset Drive Synthwave',
     type: 'video',
     url: 'live-wallpapers/sunset-drive-synthwave.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Sunset+Drive',
+    thumbnail: 'live-wallpapers/sunset-drive-synthwave.mp4',
     category: 'live'
   },
   {
@@ -81,7 +81,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Synthwave Cyberpunk',
     type: 'video',
     url: 'live-wallpapers/synthwave-cyberpunk.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Synthwave',
+    thumbnail: 'live-wallpapers/synthwave-cyberpunk.mp4',
     category: 'live'
   },
   {
@@ -89,7 +89,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Purrple Cat Picnic',
     type: 'video',
     url: 'live-wallpapers/purrple-cat-picnic-universe.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Purrple+Cat',
+    thumbnail: 'live-wallpapers/purrple-cat-picnic-universe.mp4',
     category: 'live'
   },
   {
@@ -97,7 +97,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Black Hole',
     type: 'video',
     url: 'live-wallpapers/black-hole.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Black+Hole',
+    thumbnail: 'live-wallpapers/black-hole.mp4',
     category: 'live'
   },
   {
@@ -105,7 +105,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Void Hole',
     type: 'video',
     url: 'live-wallpapers/void-hole.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Void+Hole',
+    thumbnail: 'live-wallpapers/void-hole.mp4',
     category: 'live'
   },
   {
@@ -113,7 +113,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Ghost Ready for Battle',
     type: 'video',
     url: 'live-wallpapers/ghost-ready-for-battle.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Ghost+Ready',
+    thumbnail: 'live-wallpapers/ghost-ready-for-battle.mp4',
     category: 'live'
   },
   {
@@ -121,7 +121,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Asuka Evangelion',
     type: 'video',
     url: 'live-wallpapers/asuka-x-evangelion.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Asuka',
+    thumbnail: 'live-wallpapers/asuka-x-evangelion.mp4',
     category: 'live'
   },
   {
@@ -129,7 +129,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Toyota AE86 Trueno',
     type: 'video',
     url: 'live-wallpapers/toyota-ae86-trueno.mp4',
-    thumbnail: 'https://via.placeholder.com/200x150/1f2937/ffffff?text=Toyota+AE86',
+    thumbnail: 'live-wallpapers/toyota-ae86-trueno.mp4',
     category: 'live'
   },
   

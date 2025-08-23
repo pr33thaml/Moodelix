@@ -225,10 +225,7 @@ export default function HomePage() {
         setCurrentWallpaperIndex(randomIndex)
         setBgMode('video')
         
-        // Show loading indicator
-        setBgUrl('') // Clear background temporarily
-        
-        // Load wallpaper in background (non-blocking)
+        // Load wallpaper in background (non-blocking) - don't clear bgUrl to prevent white flash
         const randomWallpaperKey = liveWallpapers[randomIndex].url
         getSignedUrl(randomWallpaperKey).then(randomWallpaperUrl => {
           setBgUrl(randomWallpaperUrl)
@@ -346,9 +343,10 @@ export default function HomePage() {
             newIndex = (prevIndex + 1) % wallpapers.length
           }
           
-          // Get the wallpaper key and convert to signed URL
+          // Preload the next wallpaper before changing to prevent white flash
           const wallpaperKey = wallpapers[newIndex]
           getSignedUrl(wallpaperKey).then(signedUrl => {
+            // Only change background after we have the new URL ready
             setBgUrl(signedUrl)
             setBgMode('video')
           }).catch(error => {
