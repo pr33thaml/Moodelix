@@ -139,7 +139,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Photo 1',
     type: 'image',
     url: 'photo-wallpaper/1 (1).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+1',
+    thumbnail: 'photo-wallpaper/1 (1).jpg', // Use actual S3 file as thumbnail
     category: 'photo'
   },
   {
@@ -147,7 +147,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Photo 2',
     type: 'image',
     url: 'photo-wallpaper/1 (18).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+2',
+    thumbnail: 'photo-wallpaper/1 (18).jpg', // Use actual S3 file as thumbnail
     category: 'photo'
   },
   {
@@ -155,7 +155,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Photo 3',
     type: 'image',
     url: 'photo-wallpaper/1 (21).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+3',
+    thumbnail: 'photo-wallpaper/1 (21).jpg', // Use actual S3 file as thumbnail
     category: 'photo'
   },
   {
@@ -163,7 +163,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Photo 4',
     type: 'image',
     url: 'photo-wallpaper/1 (29).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+4',
+    thumbnail: 'photo-wallpaper/1 (29).jpg', // Use actual S3 file as thumbnail
     category: 'photo'
   },
   {
@@ -171,7 +171,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Photo 5',
     type: 'image',
     url: 'photo-wallpaper/1 (33).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+5',
+    thumbnail: 'photo-wallpaper/1 (33).jpg', // Use actual S3 file as thumbnail
     category: 'photo'
   },
   {
@@ -179,7 +179,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Photo 6',
     type: 'image',
     url: 'photo-wallpaper/1 (5).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+6',
+    thumbnail: 'photo-wallpaper/1 (5).jpg', // Use actual S3 file as thumbnail
     category: 'photo'
   },
   {
@@ -187,7 +187,7 @@ export const wallpapers: WallpaperItem[] = [
     name: 'Photo 7',
     type: 'image',
     url: 'photo-wallpaper/1 (7).jpg',
-    thumbnail: 'https://via.placeholder.com/200x150/374151/ffffff?text=Photo+7',
+    thumbnail: 'photo-wallpaper/1 (7).jpg', // Use actual S3 file as thumbnail
     category: 'photo'
   }
 ]

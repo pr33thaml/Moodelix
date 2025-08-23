@@ -23,6 +23,7 @@ export default function WallpaperButton({
     url: string
     thumbnail: string
     type: 'video' | 'image'
+    isS3Thumbnail?: boolean
   }>>([])
   const [loading, setLoading] = useState(false)
 
@@ -42,7 +43,8 @@ export default function WallpaperButton({
           label: wallpaperData?.name || name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           url: url,
           thumbnail: wallpaperData?.thumbnail || url,
-          type: type
+          type: type,
+          isS3Thumbnail: wallpaperData?.thumbnail?.startsWith('live-wallpapers/') || wallpaperData?.thumbnail?.startsWith('photo-wallpaper/')
         }
       })
       setFormattedWallpapers(formatted as {
@@ -51,6 +53,7 @@ export default function WallpaperButton({
         url: string
         thumbnail: string
         type: 'video' | 'image'
+        isS3Thumbnail?: boolean
       }[])
     }
   }, [wallpapers])
@@ -210,11 +213,17 @@ export default function WallpaperButton({
                         className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
                       >
                         <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
-                          <img 
-                            src={wallpaper.thumbnail} 
-                            className="w-full h-full object-cover"
-                            alt={wallpaper.label}
-                          />
+                          {wallpaper.isS3Thumbnail ? (
+                            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+                              <span className="text-white/60 text-xs">📷</span>
+                            </div>
+                          ) : (
+                            <img 
+                              src={wallpaper.thumbnail} 
+                              className="w-full h-full object-cover"
+                              alt={wallpaper.label}
+                            />
+                          )}
                         </div>
                         <span className="text-left text-xs">{wallpaper.label}</span>
                       </button>
