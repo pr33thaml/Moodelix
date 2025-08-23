@@ -335,9 +335,12 @@ export default function HomePage() {
             <>
           <span className="text-white/60 text-xs font-medium">Slideshow</span>
               <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
-          <button
-            onClick={() => setSlideshowEnabled(!slideshowEnabled)}
-                  className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
+                    <button
+            onClick={() => {
+              playToggleSoundIfEnabled()
+              setSlideshowEnabled(!slideshowEnabled)
+            }}
+            className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
               slideshowEnabled ? 'bg-white/30' : 'bg-white/20'
             }`}
           >
@@ -445,7 +448,10 @@ export default function HomePage() {
             <span className="text-white/80 text-xs">Show Slideshow</span>
             <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
               <button
-                onClick={() => setShowSlideshow(!showSlideshow)}
+                onClick={() => {
+                  playToggleSoundIfEnabled()
+                  setShowSlideshow(!showSlideshow)
+                }}
                 className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
                   showSlideshow ? 'bg-white/30' : 'bg-white/20'
                 }`}
@@ -463,7 +469,10 @@ export default function HomePage() {
             <span className="text-white/80 text-xs">Show Bottom Menu</span>
             <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
               <button
-                onClick={() => setShowBottomMenu(!showBottomMenu)}
+                onClick={() => {
+                  playToggleSoundIfEnabled()
+                  setShowBottomMenu(!showBottomMenu)
+                }}
                 className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
                   showBottomMenu ? 'bg-white/30' : 'bg-white/20'
                 }`}
@@ -481,7 +490,10 @@ export default function HomePage() {
             <span className="text-white/80 text-xs">Show Title</span>
             <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
               <button
-                onClick={() => setShowTitle(!showTitle)}
+                onClick={() => {
+                  playToggleSoundIfEnabled()
+                  setShowTitle(!showTitle)
+                }}
                 className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
                   showTitle ? 'bg-white/30' : 'bg-white/20'
                 }`}
@@ -499,8 +511,11 @@ export default function HomePage() {
             <span className="text-white/80 text-xs">Randomize Slideshow</span>
             <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
               <button
-                onClick={() => setSlideshowRandomized(!slideshowRandomized)}
-                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
+                onClick={() => {
+                  playToggleSoundIfEnabled()
+                  setSlideshowRandomized(!slideshowRandomized)
+                }}
+                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus-outline-none ${
                   slideshowRandomized ? 'bg-white/30' : 'bg-white/20'
                 }`}
               >
@@ -576,7 +591,10 @@ export default function HomePage() {
             <span className="text-white/80 text-xs">Music Player</span>
             <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
               <button
-                onClick={() => setShowBackgroundPlayer(!showBackgroundPlayer)}
+                onClick={() => {
+                  playToggleSoundIfEnabled()
+                  setShowBackgroundPlayer(!showBackgroundPlayer)
+                }}
                 className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
                   showBackgroundPlayer ? 'bg-white/30' : 'bg-white/20'
                 }`}

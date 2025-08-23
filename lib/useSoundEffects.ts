@@ -41,7 +41,7 @@ export function useSoundEffects() {
             if (url) {
               const audio = new Audio(url)
               audio.preload = 'auto'
-              audio.volume = 0.3 // Set default volume
+              audio.volume = 0.15 // Set default volume (reduced from 0.3)
               audioRefs.current[key] = audio
             }
           })
