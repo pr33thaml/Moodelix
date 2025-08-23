@@ -8,10 +8,22 @@ interface CenterMenuProps {
   onFocus: () => void
   onHome: () => void
   wallpapers: string[]
+  buttonSize?: 'small' | 'medium' | 'large'
   onClick?: () => void
 }
 
-export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus, onHome, wallpapers, onClick }: CenterMenuProps) {
+export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus, onHome, wallpapers, buttonSize = 'medium', onClick }: CenterMenuProps) {
+  const getButtonSizeClasses = () => {
+    switch (buttonSize) {
+      case 'small':
+        return 'w-12 h-12 text-xs'
+      case 'large':
+        return 'w-16 h-16 text-base'
+      default: // medium
+        return 'w-14 h-14 text-sm'
+    }
+  }
+
   return (
     <div className="center-menu">
       <button 
@@ -19,7 +31,7 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
           onClick?.()
           onHome && onHome()
         }}
-        className="link"
+        className={`link ${getButtonSizeClasses()}`}
       >
         <span className="link-icon">
           <svg
@@ -41,7 +53,7 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
           onClick?.()
           onTodo && onTodo()
         }}
-        className="link"
+        className={`link ${getButtonSizeClasses()}`}
       >
         <span className="link-icon">
           <svg
@@ -69,7 +81,7 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
           onClick?.()
           onMusic && onMusic()
         }}
-        className="link"
+        className={`link ${getButtonSizeClasses()}`}
       >
         <span className="link-icon">
           <svg
@@ -92,7 +104,7 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
           onClick?.()
           onFocus && onFocus()
         }}
-        className="link"
+        className={`link ${getButtonSizeClasses()}`}
       >
         <span className="link-icon">
           <svg
@@ -115,6 +127,7 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
       <WallpaperButton 
         onWallpaperChange={onWallpaperChange} 
         wallpapers={wallpapers}
+        buttonSize={buttonSize}
         onClick={onClick}
       />
     </div>

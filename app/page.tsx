@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import EnhancedMusicPlayer from '@/components/EnhancedMusicPlayer'
-import MiniPlayerControl from '@/components/MiniPlayerControl'
 import BackgroundMusicPlayer from '@/components/BackgroundMusicPlayer'
 import CenterMenu from '@/components/CenterMenu'
+import BugReportPopup from '@/components/BugReportPopup'
 import { useSoundEffects } from '@/lib/useSoundEffects'
 import Tooltip from '@/components/Tooltip'
 
@@ -28,9 +28,11 @@ export default function HomePage() {
 
   const [logoSize, setLogoSize] = useState<'small' | 'medium' | 'large'>('large')
   const [quoteSize, setQuoteSize] = useState<'small' | 'medium' | 'large'>('large')
+  const [buttonSize, setButtonSize] = useState<'small' | 'medium' | 'large'>('medium')
   const [currentFont, setCurrentFont] = useState<'space-grotesk' | 'handwriting' | 'inter' | 'poppins' | 'roboto' | 'cinzel' | 'playfair' | 'merriweather' | 'lora' | 'crimson' | 'source-serif' | 'libre-baskerville' | 'vollkorn' | 'bree-serif' | 'josefin-sans' | 'quicksand' | 'comfortaa' | 'fredoka' | 'nunito' | 'montserrat'>('space-grotesk')
   const [audioVolume, setAudioVolume] = useState(0.7)
   const [audioMuted, setAudioMuted] = useState(false)
+  const [wallpaperBrightness, setWallpaperBrightness] = useState<'darker' | 'dark' | 'normal' | 'bright'>('normal')
   const [hideEverything, setHideEverything] = useState(false)
 
   // Music control functions
@@ -76,6 +78,8 @@ export default function HomePage() {
   const [showTitle, setShowTitle] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showFontPanel, setShowFontPanel] = useState(false)
+  const [showSupportPanel, setShowSupportPanel] = useState(false)
+  const [showBugReport, setShowBugReport] = useState(false)
   const [tasks, setTasks] = useState<Array<{id: string, text: string, completed: boolean, createdAt: Date}>>([])
   const [focusMode, setFocusMode] = useState<'focus' | 'shortBreak' | 'longBreak'>('focus')
   const [isTimerRunning, setIsTimerRunning] = useState(false)
@@ -365,9 +369,23 @@ export default function HomePage() {
       
       {/* Background */}
       {bgMode === 'video' && bgUrl ? (
-        <video className="video-bg" autoPlay muted loop playsInline src={bgUrl} />
+        <video 
+          className={`video-bg ${
+            wallpaperBrightness === 'darker' ? 'brightness-50' :
+            wallpaperBrightness === 'dark' ? 'brightness-75' :
+            wallpaperBrightness === 'normal' ? 'brightness-100' : 'brightness-120'
+          }`} 
+          autoPlay muted loop playsInline src={bgUrl} 
+        />
       ) : bgMode === 'image' && bgUrl ? (
-        <img className="video-bg object-cover" src={bgUrl} alt="background" />
+        <img 
+          className={`video-bg object-cover ${
+            wallpaperBrightness === 'darker' ? 'brightness-50' :
+            wallpaperBrightness === 'dark' ? 'brightness-75' :
+            wallpaperBrightness === 'normal' ? 'brightness-100' : 'brightness-120'
+          }`} 
+          src={bgUrl} alt="background" 
+        />
       ) : (
         <div className="video-bg bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
           <div className="text-center text-white/60">
@@ -405,7 +423,7 @@ export default function HomePage() {
           </button>
           </Tooltip>
         </div>
-
+        
       {/* Main Content - Hidden when hideEverything is true */}
       {!hideEverything && (
         <>
@@ -514,6 +532,20 @@ export default function HomePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 4h12M6 4v16M6 12h8" />
             </svg>
           </button>
+          </Tooltip>
+
+          <Tooltip content="Support & Links">
+            <button
+              onClick={() => {
+                playClickSoundIfEnabled()
+                setShowSupportPanel(!showSupportPanel)
+              }}
+              className="w-10 h-10 rounded-full bg-white/10 border border-white/20 backdrop-blur flex items-center justify-center transition-all duration-200 hover:bg-white/20"
+            >
+              <svg className="w-5 h-5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </button>
           </Tooltip>
 
           <Tooltip content="Settings">
@@ -685,6 +717,25 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center justify-between mb-3">
+            <span className="text-white/80 text-xs">Button Size</span>
+            <div className="flex gap-1">
+              {(['small', 'medium', 'large'] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setButtonSize(size)}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                    buttonSize === size
+                      ? 'bg-white/30 text-white'
+                      : 'bg-white/10 text-white/60 hover:text-white/80'
+                  }`}
+                >
+                  {size.charAt(0).toUpperCase() + size.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mb-3">
             <span className="text-white/80 text-xs">Music Player</span>
             <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
               <button
@@ -725,9 +776,111 @@ export default function HomePage() {
               </button>
             </div>
           </div>
+
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-white/80 text-xs">Wallpaper Brightness</span>
+            <div className="flex gap-1">
+              {(['darker', 'dark', 'normal', 'bright'] as const).map((brightness) => (
+                <button
+                  key={brightness}
+                  onClick={() => {
+                    playClickSoundIfEnabled()
+                    setWallpaperBrightness(brightness)
+                  }}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                    wallpaperBrightness === brightness
+                      ? 'bg-white/30 text-white'
+                      : 'bg-white/10 text-white/60 hover:text-white/80'
+                  }`}
+                  title={
+                    brightness === 'darker' ? 'Darker (70% brightness)' :
+                    brightness === 'dark' ? 'Dark (85% brightness)' :
+                    brightness === 'normal' ? 'Normal (100% brightness)' :
+                    'Bright (120% brightness)'
+                  }
+                >
+                  {brightness.charAt(0).toUpperCase() + brightness.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         </div>
       )}
+
+      {/* Support Panel */}
+      {showSupportPanel && (
+        <div className="fixed inset-0 z-[99] bg-black/20" onClick={() => {
+          playExitSoundIfEnabled()
+          setShowSupportPanel(false)
+        }}>
+          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-4 min-w-[280px] z-[100] backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="text-white text-sm font-medium mb-4">Support & Links</div>
+            
+            <div className="space-y-3">
+              {/* Wallpaper Request */}
+              <a
+                href="mailto:preethaml99@outlook.com?subject=Wallpaper%20Request%20-%20Attach%20Your%20Wallpaper%20and%20Send%20Thanks!"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-3 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition-colors text-white/90 hover:text-white"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm">Request Wallpaper</span>
+              </a>
+
+              {/* Buy Me a Coffee */}
+              <a
+                href="https://buymeacoffee.com/pr33thaml"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-3 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition-colors text-white/90 hover:text-white"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span className="text-sm">Buy Me a Coffee</span>
+              </a>
+
+              {/* Report Bug */}
+              <button
+                onClick={() => {
+                  playClickSoundIfEnabled()
+                  setShowBugReport(true)
+                }}
+                className="flex items-center gap-3 p-3 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition-colors text-white/90 hover:text-white w-full text-left"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span className="text-sm">Report Bug</span>
+              </button>
+
+              {/* GitHub */}
+              <a
+                href="https://github.com/pr33thaml"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-3 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition-colors text-white/90 hover:text-white"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                <span className="text-sm">GitHub</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bug Report Popup */}
+      <BugReportPopup
+        isOpen={showBugReport}
+        onClose={() => setShowBugReport(false)}
+        onClick={playClickSoundIfEnabled}
+      />
 
       {/* Font Panel */}
       {showFontPanel && (
@@ -1066,7 +1219,7 @@ export default function HomePage() {
                 setShowTodo(false)
               }}
               wallpapers={allWallpapers}
-
+              buttonSize={buttonSize}
               onClick={playClickSoundIfEnabled}
             />
         </div>

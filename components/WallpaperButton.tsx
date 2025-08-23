@@ -5,10 +5,12 @@ import { useEffect, useState } from 'react'
 export default function WallpaperButton({ 
   onWallpaperChange, 
   wallpapers, 
+  buttonSize = 'medium',
   onClick 
 }: { 
   onWallpaperChange?: (url: string) => void, 
   wallpapers: string[]
+  buttonSize?: 'small' | 'medium' | 'large'
   onClick?: () => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -39,7 +41,13 @@ export default function WallpaperButton({
           type: type
         }
       })
-      setFormattedWallpapers(formatted)
+      setFormattedWallpapers(formatted as {
+        key: string
+        label: string
+        url: string
+        thumbnail: string
+        type: 'video' | 'image'
+      }[])
     }
   }, [wallpapers])
 
@@ -62,6 +70,17 @@ export default function WallpaperButton({
   const liveWallpapers = formattedWallpapers.filter(w => w.type === 'video')
   const photoWallpapers = formattedWallpapers.filter(w => w.type === 'image')
 
+  const getButtonSizeClasses = () => {
+    switch (buttonSize) {
+      case 'small':
+        return 'w-12 h-12 text-xs'
+      case 'large':
+        return 'w-16 h-16 text-base'
+      default: // medium
+        return 'w-14 h-14 text-sm'
+    }
+  }
+
   return (
     <div className="relative">
       <button
@@ -69,7 +88,7 @@ export default function WallpaperButton({
           onClick?.()
           handleButtonClick()
         }}
-        className="link"
+        className={`link ${getButtonSizeClasses()}`}
       >
         <span className="link-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" fill="currentColor" viewBox="0 0 256 256">

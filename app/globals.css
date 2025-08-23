@@ -91,6 +91,23 @@
 
 
 
+/* Wallpaper brightness filters */
+.brightness-50 {
+  filter: brightness(0.7);
+}
+
+.brightness-75 {
+  filter: brightness(0.85);
+}
+
+.brightness-100 {
+  filter: brightness(1);
+}
+
+.brightness-120 {
+  filter: brightness(1.2);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -223,12 +240,28 @@
   z-index: 1;
   overflow: hidden;
   transform-origin: center left;
-  transition: width 0.2s ease-in;
+  transition: all 0.2s ease-in;
   text-decoration: none;
   color: rgba(255, 255, 255, 0.9);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
   flex-shrink: 0;
+}
+
+/* Button size variants */
+.link.w-12.h-12 {
+  width: 48px;
+  height: 48px;
+}
+
+.link.w-14.h-14 {
+  width: 56px;
+  height: 56px;
+}
+
+.link.w-16.h-16 {
+  width: 64px;
+  height: 64px;
 }
 
 .link:before {
@@ -253,6 +286,22 @@
   color: rgba(255, 255, 255, 1);
 }
 
+/* Adjust hover width based on button size */
+.link.w-12.h-12:hover,
+.link.w-12.h-12:focus {
+  width: 110px;
+}
+
+.link.w-14.h-14:hover,
+.link.w-14.h-14:focus {
+  width: 120px;
+}
+
+.link.w-16.h-16:hover,
+.link.w-16.h-16:focus {
+  width: 140px;
+}
+
 .link:hover:before,
 .link:focus:before,
 .link:hover .link-title,
@@ -275,6 +324,19 @@
   height: 28px;
 }
 
+/* Adjust icon positioning for different button sizes */
+.link.w-12.h-12 .link-icon {
+  left: 12px;
+}
+
+.link.w-14.h-14 .link-icon {
+  left: 16px;
+}
+
+.link.w-16.h-16 .link-icon {
+  left: 20px;
+}
+
 .link-title {
   transform: translateX(100%);
   transition: transform 0.2s ease-in;
@@ -286,6 +348,19 @@
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1;
+}
+
+/* Adjust text positioning for different button sizes */
+.link.w-12.h-12 .link-title {
+  text-indent: 24px;
+}
+
+.link.w-14.h-14 .link-title {
+  text-indent: 26px;
+}
+
+.link.w-16.h-16 .link-title {
+  text-indent: 32px;
 }
 
 /* Settings Button - From Uiverse.io by vinodjangid07 */
