@@ -343,7 +343,7 @@ export default function HomePage() {
         
         // Determine if it's a video or image based on file extension
         if (newWallpaper.match(/\.(mp4|webm|mov)$/i)) {
-          setBgMode('video')
+    setBgMode('video')
         } else {
           setBgMode('image')
         }
