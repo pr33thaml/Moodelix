@@ -96,6 +96,10 @@ export default function HomePage() {
   // Cache for signed URLs to avoid repeated API calls
   const [urlCache, setUrlCache] = useState<Map<string, string>>(new Map())
   
+  // Preload queue for wallpapers - prevents white flash
+  const [preloadQueue, setPreloadQueue] = useState<Set<string>>(new Set())
+  const [preloadedUrls, setPreloadedUrls] = useState<Map<string, string>>(new Map())
+  
   // Loading state for better UX
   const [isLoadingWallpaper, setIsLoadingWallpaper] = useState(false)
   
@@ -193,12 +197,28 @@ export default function HomePage() {
     }
   }
 
-  // Helper function to get signed URL from API
-  const getSignedUrl = async (s3Key: string): Promise<string> => {
+  // Enhanced signed URL function with preloading
+  const getSignedUrl = useCallback(async (s3Key: string): Promise<string> => {
+    const startTime = performance.now()
+    
+    // Check cache first for instant response
     if (urlCache.has(s3Key)) {
-      return urlCache.get(s3Key)!
+      const cachedUrl = urlCache.get(s3Key)!
+      console.log(`⚡ Cache hit for ${s3Key} (${(performance.now() - startTime).toFixed(2)}ms)`)
+      return cachedUrl
     }
+    
+    // Check preloaded URLs
+    if (preloadedUrls.has(s3Key)) {
+      const url = preloadedUrls.get(s3Key)!
+      // Move to main cache
+      setUrlCache(prev => new Map(prev).set(s3Key, url))
+      console.log(`🚀 Preload hit for ${s3Key} (${(performance.now() - startTime).toFixed(2)}ms)`)
+      return url
+    }
+    
     try {
+      console.log(`📡 Fetching signed URL for ${s3Key}...`)
       const response = await fetch('/api/wallpapers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -211,13 +231,86 @@ export default function HomePage() {
       
       const data = await response.json()
       const signedUrl = data.signedUrl
+      
+      // Cache the URL
       setUrlCache(prev => new Map(prev).set(s3Key, signedUrl))
+      console.log(`✅ Fetched ${s3Key} (${(performance.now() - startTime).toFixed(2)}ms)`)
       return signedUrl
     } catch (error) {
       console.error('Error getting signed URL:', error)
       throw error
     }
-  }
+  }, [urlCache, preloadedUrls])
+
+  // Aggressive preloading system to eliminate white flash
+  const preloadWallpapers = useCallback(async (wallpaperKeys: string[]) => {
+    if (wallpaperKeys.length === 0) return
+    
+    console.log(`🚀 Starting aggressive preload of ${wallpaperKeys.length} wallpapers...`)
+    
+    // Add to preload queue
+    setPreloadQueue(prev => new Set([...prev, ...wallpaperKeys]))
+    
+    try {
+      // Preload all wallpapers in parallel with timeout protection
+      const preloadPromises = wallpaperKeys.map(async (key) => {
+        try {
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Preload timeout')), 8000)
+          )
+          
+          const url = await Promise.race([
+            fetch('/api/wallpapers', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ s3Key: key })
+            }).then(res => res.json()).then(data => data.signedUrl),
+            timeoutPromise
+          ])
+          
+          return { key, url, success: true }
+        } catch (error) {
+          console.warn(`Failed to preload ${key}:`, error)
+          return { key, success: false, error }
+        }
+      })
+      
+      const results = await Promise.allSettled(preloadPromises)
+      
+      // Process successful preloads
+      const successful = results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => (r as PromiseFulfilledResult<any>).value)
+        .filter(r => r.success)
+      
+      // Add to preloaded URLs
+      setPreloadedUrls(prev => {
+        const newMap = new Map(prev)
+        successful.forEach(({ key, url }) => newMap.set(key, url))
+        return newMap
+      })
+      
+      console.log(`✅ Successfully preloaded ${successful.length}/${wallpaperKeys.length} wallpapers`)
+      
+    } catch (error) {
+      console.error('Error in preloading:', error)
+    } finally {
+      // Remove from preload queue
+      setPreloadQueue(prev => {
+        const newSet = new Set(prev)
+        wallpaperKeys.forEach(key => newSet.delete(key))
+        return newSet
+      })
+    }
+  }, [])
+
+  // Hover preload for instant switching on user interaction
+  const handleHoverPreload = useCallback((s3Key: string) => {
+    // If not already preloaded, start preloading
+    if (!preloadedUrls.has(s3Key) && !urlCache.has(s3Key)) {
+      preloadWallpapers([s3Key])
+    }
+  }, [preloadedUrls, urlCache, preloadWallpapers])
 
   // Wallpaper functions - Ultra-fast loading: show UI instantly, load video in background
   const loadWallpapers = useCallback(async () => {
@@ -238,7 +331,7 @@ export default function HomePage() {
         setCurrentWallpaperIndex(randomIndex)
         setBgMode('video')
         
-        // Set a temporary animated background immediately to prevent grey
+        // Set a beautiful animated background immediately to prevent white/grey
         setBgUrl('')
         
         // Start loading the wallpaper immediately with timeout
@@ -257,27 +350,26 @@ export default function HomePage() {
           setIsLoadingWallpaper(false)
         }).catch(error => {
           console.error('Error loading wallpaper:', error)
-          // Fallback to default background
-          setBgMode('image')
+          // Keep the beautiful animated background instead of falling back to grey
+          setBgMode('video')
           setBgUrl('')
           setIsLoadingWallpaper(false)
         })
         
-        // Preload next 3 wallpapers aggressively in parallel
+        // Aggressively preload next 5 wallpapers for instant switching
         const preloadIndices = [
           (randomIndex + 1) % liveWallpapers.length,
           (randomIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
-          (randomIndex + 2) % liveWallpapers.length
+          (randomIndex + 2) % liveWallpapers.length,
+          (randomIndex - 2 + liveWallpapers.length) % liveWallpapers.length,
+          (randomIndex + 3) % liveWallpapers.length
         ]
         
-        // Preload all at once for faster subsequent changes
-        Promise.allSettled(
-          preloadIndices.map(index => 
-            getSignedUrl(liveWallpapers[index].url)
-          )
-        ).then(results => {
-          console.log('Preloaded wallpapers:', results.filter(r => r.status === 'fulfilled').length)
-        })
+        const preloadKeys = preloadIndices.map(index => liveWallpapers[index].url)
+        
+        // Start preloading immediately
+        preloadWallpapers(preloadKeys)
+        
       } else {
         setIsLoadingWallpaper(false)
       }
@@ -285,7 +377,7 @@ export default function HomePage() {
       console.error('Error loading wallpapers:', error)
       setIsLoadingWallpaper(false)
     }
-  }, [])
+  }, [getSignedUrl, preloadWallpapers])
 
   const handleWallpaperChange = async (s3Key: string) => {
     try {
@@ -309,6 +401,62 @@ export default function HomePage() {
         
         setBgMode(isLiveWallpaper ? 'video' : 'image')
         setIsLoadingWallpaper(false)
+        
+        // Preload next few wallpapers for future instant switching
+        if (isLiveWallpaper) {
+          const liveWallpapers = getLiveWallpapers()
+          const currentIndex = liveWallpapers.findIndex(w => w.url === s3Key)
+          if (currentIndex >= 0) {
+            const preloadIndices = [
+              (currentIndex + 1) % liveWallpapers.length,
+              (currentIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+              (currentIndex + 2) % liveWallpapers.length
+            ]
+            const preloadKeys = preloadIndices.map(index => liveWallpapers[index].url)
+            preloadWallpapers(preloadKeys)
+          }
+        }
+        
+        return
+      }
+      
+      // Check preloaded URLs for instant response
+      if (preloadedUrls.has(s3Key)) {
+        const preloadedUrl = preloadedUrls.get(s3Key)!
+        setBgUrl(preloadedUrl)
+        
+        // Move to main cache
+        setUrlCache(prev => new Map(prev).set(s3Key, preloadedUrl))
+        
+        // Check if it's a live wallpaper (for slideshow compatibility)
+        const isLiveWallpaper = s3Key.match(/\.(mp4|webm|mov)$/i)
+        
+        if (isLiveWallpaper) {
+          const wallpaperKeys = getLiveWallpapers().map(w => w.url)
+          const index = wallpaperKeys.indexOf(s3Key)
+          setCurrentWallpaperIndex(index >= 0 ? index : 0)
+        } else {
+          setCurrentWallpaperIndex(-1)
+        }
+        
+        setBgMode(isLiveWallpaper ? 'video' : 'image')
+        setIsLoadingWallpaper(false)
+        
+        // Preload next few wallpapers for future instant switching
+        if (isLiveWallpaper) {
+          const liveWallpapers = getLiveWallpapers()
+          const currentIndex = liveWallpapers.findIndex(w => w.url === s3Key)
+          if (currentIndex >= 0) {
+            const preloadIndices = [
+              (currentIndex + 1) % liveWallpapers.length,
+              (currentIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+              (currentIndex + 2) % liveWallpapers.length
+            ]
+            const preloadKeys = preloadIndices.map(index => liveWallpapers[index].url)
+            preloadWallpapers(preloadKeys)
+          }
+        }
+        
         return
       }
       
@@ -336,6 +484,21 @@ export default function HomePage() {
       
       setBgUrl(signedUrl)
       setIsLoadingWallpaper(false)
+      
+      // Preload next few wallpapers for future instant switching
+      if (isLiveWallpaper) {
+        const liveWallpapers = getLiveWallpapers()
+        const currentIndex = liveWallpapers.findIndex(w => w.url === s3Key)
+        if (currentIndex >= 0) {
+          const preloadIndices = [
+            (currentIndex + 1) % liveWallpapers.length,
+            (currentIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+            (currentIndex + 2) % liveWallpapers.length
+          ]
+          const preloadKeys = preloadIndices.map(index => liveWallpapers[index].url)
+          preloadWallpapers(preloadKeys)
+        }
+      }
     } catch (error) {
       console.error('Error loading wallpaper:', error)
       setIsLoadingWallpaper(false)
@@ -353,25 +516,16 @@ export default function HomePage() {
         const liveWallpapers = getLiveWallpapers()
         const photoWallpapers = getPhotoWallpapers()
         
-        // Preload first 5 wallpapers immediately
+        // Preload first 8 wallpapers immediately for instant switching
         const preloadKeys = [
-          ...liveWallpapers.slice(0, 3).map(w => w.url),
-          ...photoWallpapers.slice(0, 2).map(w => w.url)
+          ...liveWallpapers.slice(0, 5).map(w => w.url),
+          ...photoWallpapers.slice(0, 3).map(w => w.url)
         ]
         
-        console.log('Starting aggressive preload of', preloadKeys.length, 'wallpapers...')
+        console.log('🚀 Starting aggressive preload of', preloadKeys.length, 'wallpapers...')
         
-        // Preload in parallel with progress tracking
-        const results = await Promise.allSettled(
-          preloadKeys.map(async (key, index) => {
-            const url = await getSignedUrl(key)
-            console.log(`Preloaded wallpaper ${index + 1}/${preloadKeys.length}`)
-            return { key, url }
-          })
-        )
-        
-        const successful = results.filter(r => r.status === 'fulfilled').length
-        console.log(`Successfully preloaded ${successful}/${preloadKeys.length} wallpapers`)
+        // Use the new preloading system
+        preloadWallpapers(preloadKeys)
         
       } catch (error) {
         console.error('Error in aggressive preloading:', error)
@@ -380,7 +534,7 @@ export default function HomePage() {
     
     // Start preloading after a short delay to not block initial render
     setTimeout(preloadAllWallpapers, 1000)
-  }, [loadWallpapers])
+  }, [loadWallpapers, preloadWallpapers])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -413,62 +567,83 @@ export default function HomePage() {
     return () => clearInterval(id)
   }, [quoteIndex, quotes])
 
-    // Wallpaper slideshow effect - Fixed to work with S3
+    // Slideshow functionality with preloaded URLs for instant switching
   useEffect(() => {
     if (!slideshowEnabled || wallpapers.length === 0) return
     
-    const getSlideshowSpeed = () => {
-      switch (slideshowSpeed) {
-        case 'slow': return 60000    // 60 seconds
-        case 'medium': return 30000  // 30 seconds
-        case 'fast': return 10000     // 10 seconds
-        default: return 10000
-      }
-    }
-    
     const slideshowTimer = setInterval(async () => {
       try {
-        setCurrentWallpaperIndex((prevIndex) => {
-          let newIndex
-          if (wallpapers.length === 1) {
-            newIndex = 0
-          } else if (slideshowRandomized) {
-            do {
-              newIndex = Math.floor(Math.random() * wallpapers.length)
-            } while (newIndex === prevIndex)
-          } else {
-            newIndex = (prevIndex + 1) % wallpapers.length
-          }
+        const liveWallpapers = getLiveWallpapers()
+        if (liveWallpapers.length === 0) return
+        
+        let nextIndex: number
+        if (slideshowRandomized) {
+          // Get a random index different from current
+          do {
+            nextIndex = Math.floor(Math.random() * liveWallpapers.length)
+          } while (nextIndex === currentWallpaperIndex && liveWallpapers.length > 1)
+        } else {
+          nextIndex = (currentWallpaperIndex + 1) % liveWallpapers.length
+        }
+        
+        const nextWallpaperKey = liveWallpapers[nextIndex].url
+        
+        // Check if we have this wallpaper preloaded for instant switching
+        if (preloadedUrls.has(nextWallpaperKey)) {
+          const preloadedUrl = preloadedUrls.get(nextWallpaperKey)!
+          setBgUrl(preloadedUrl)
+          setCurrentWallpaperIndex(nextIndex)
           
-          // Preload the next wallpaper before changing to prevent white flash
-          const wallpaperKey = wallpapers[newIndex]
+          // Move to main cache
+          setUrlCache(prev => new Map(prev).set(nextWallpaperKey, preloadedUrl))
           
-          // Check cache first for instant response
-          if (urlCache.has(wallpaperKey)) {
-            const cachedUrl = urlCache.get(wallpaperKey)!
-            setBgUrl(cachedUrl)
-            setBgMode('video')
-            return newIndex
-          }
+          // Preload next few wallpapers for future instant switching
+          const preloadIndices = [
+            (nextIndex + 1) % liveWallpapers.length,
+            (nextIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+            (nextIndex + 2) % liveWallpapers.length
+          ]
+          const preloadKeys = preloadIndices.map(index => liveWallpapers[index].url)
+          preloadWallpapers(preloadKeys)
           
-          // If not cached, load it
-          getSignedUrl(wallpaperKey).then(signedUrl => {
-            // Only change background after we have the new URL ready
-            setBgUrl(signedUrl)
-            setBgMode('video')
-          }).catch(error => {
-            console.error('Error loading slideshow wallpaper:', error)
-          })
+        } else if (urlCache.has(nextWallpaperKey)) {
+          // Use cached URL for instant switching
+          const cachedUrl = urlCache.get(nextWallpaperKey)!
+          setBgUrl(cachedUrl)
+          setCurrentWallpaperIndex(nextIndex)
           
-          return newIndex
-        })
+          // Preload next few wallpapers for future instant switching
+          const preloadIndices = [
+            (nextIndex + 1) % liveWallpapers.length,
+            (nextIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+            (nextIndex + 2) % liveWallpapers.length
+          ]
+          const preloadKeys = preloadIndices.map(index => liveWallpapers[index].url)
+          preloadWallpapers(preloadKeys)
+          
+        } else {
+          // Fallback to loading the wallpaper
+          const signedUrl = await getSignedUrl(nextWallpaperKey)
+          setBgUrl(signedUrl)
+          setCurrentWallpaperIndex(nextIndex)
+          
+          // Preload next few wallpapers for future instant switching
+          const preloadIndices = [
+            (nextIndex + 1) % liveWallpapers.length,
+            (nextIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+            (nextIndex + 2) % liveWallpapers.length
+          ]
+          const preloadKeys = preloadIndices.map(index => liveWallpapers[index].url)
+          preloadWallpapers(preloadKeys)
+        }
+        
       } catch (error) {
-        console.error('Slideshow error:', error)
+        console.error('Error in slideshow:', error)
       }
-    }, getSlideshowSpeed())
+    }, slideshowSpeed === 'slow' ? 8000 : slideshowSpeed === 'medium' ? 5000 : 3000)
     
     return () => clearInterval(slideshowTimer)
-  }, [slideshowEnabled, wallpapers.length, slideshowRandomized, slideshowSpeed])
+  }, [slideshowEnabled, wallpapers.length, slideshowRandomized, slideshowSpeed, getSignedUrl, preloadWallpapers, preloadedUrls, urlCache, currentWallpaperIndex])
 
   // Ensure individual wallpapers loop when slideshow is disabled
   useEffect(() => {
@@ -534,7 +709,13 @@ export default function HomePage() {
             wallpaperBrightness === 'dark' ? 'brightness-75' :
             wallpaperBrightness === 'normal' ? 'brightness-100' : 'brightness-120'
           }`} 
-          autoPlay muted loop playsInline preload="auto" src={bgUrl} 
+          autoPlay muted loop playsInline 
+          preload="auto" 
+          src={bgUrl}
+          onLoadStart={() => console.log('🎬 Video loading started')}
+          onCanPlay={() => console.log('🎬 Video can play')}
+          onLoadedData={() => console.log('🎬 Video data loaded')}
+          onError={(e) => console.error('🎬 Video error:', e)}
         />
       ) : bgMode === 'image' && bgUrl ? (
         <img 
@@ -547,11 +728,13 @@ export default function HomePage() {
         />
       ) : (
         <div className="video-bg bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center relative overflow-hidden">
-          {/* Animated background elements to prevent grey */}
+          {/* Enhanced animated background elements to prevent any white/grey flash */}
           <div className="absolute inset-0">
             <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-float"></div>
             <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-float" style={{animationDelay: '1s'}}></div>
             <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '2s'}}></div>
+            <div className="absolute top-1/4 right-1/4 w-48 h-48 bg-cyan-500/20 rounded-full blur-2xl animate-bounce" style={{animationDelay: '0.5s'}}></div>
+            <div className="absolute bottom-1/4 left-1/4 w-56 h-56 bg-emerald-500/20 rounded-full blur-2xl animate-ping" style={{animationDelay: '1.5s'}}></div>
           </div>
           
           <div className="text-center text-white/60 relative z-10">
@@ -560,6 +743,15 @@ export default function HomePage() {
                 <div className="text-6xl mb-4 animate-pulse">🎬</div>
                 <div className="text-xl font-medium mb-2">Loading Live Wallpaper...</div>
                 <div className="text-sm text-white/40">This will take just a moment</div>
+                {/* Show preload progress */}
+                <div className="mt-4 text-xs text-white/30">
+                  Preloaded: {preloadedUrls.size} wallpapers
+                </div>
+                {preloadQueue.size > 0 && (
+                  <div className="mt-2 text-xs text-white/20">
+                    Loading {preloadQueue.size} more...
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -656,12 +848,24 @@ export default function HomePage() {
               </span>
               )}
               
-              {/* Cache status indicator */}
-              {urlCache.size > 0 && (
-                <span className="text-white/30 text-xs font-medium">
-                  {urlCache.size} cached
-                </span>
-              )}
+              {/* Enhanced cache and preload status indicator */}
+              <div className="flex items-center gap-1 text-xs">
+                {urlCache.size > 0 && (
+                  <span className="text-white/30 font-medium">
+                    {urlCache.size} cached
+                  </span>
+                )}
+                {preloadedUrls.size > 0 && (
+                  <span className="text-white/20 font-medium">
+                    {preloadedUrls.size} preloaded
+                  </span>
+                )}
+                {preloadQueue.size > 0 && (
+                  <span className="text-white/10 font-medium animate-pulse">
+                    {preloadQueue.size} loading...
+                  </span>
+                )}
+              </div>
               
               {/* Loading indicator */}
               {isLoadingWallpaper && (
