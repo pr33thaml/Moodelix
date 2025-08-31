@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { wallpapers as staticWallpapers } from '@/lib/wallpaperData'
 
 export default function WallpaperButton({ 
@@ -50,6 +50,7 @@ export default function WallpaperButton({
 
   // Cache for signed URLs to avoid repeated API calls
   const [urlCache, setUrlCache] = useState<Map<string, string>>(new Map())
+  const [preloadQueue, setPreloadQueue] = useState<Set<string>>(new Set())
   
   // Get signed URL with caching
   const getCachedSignedUrl = async (s3Key: string): Promise<string> => {
@@ -61,6 +62,47 @@ export default function WallpaperButton({
     setUrlCache(prev => new Map(prev).set(s3Key, signedUrl))
     return signedUrl
   }
+
+  // Aggressive preloading for instant previews
+  const preloadWallpapers = useCallback(async (wallpaperKeys: string[]) => {
+    if (wallpaperKeys.length === 0) return
+    
+    console.log(`🚀 Preloading ${wallpaperKeys.length} wallpapers for instant previews...`)
+    
+    // Add to preload queue
+    setPreloadQueue(prev => new Set([...prev, ...wallpaperKeys]))
+    
+    try {
+      // Preload all wallpapers in parallel
+      const preloadPromises = wallpaperKeys.map(async (key) => {
+        try {
+          if (!urlCache.has(key)) {
+            const url = await getSignedUrl(key)
+            setUrlCache(prev => new Map(prev).set(key, url))
+            return { key, success: true }
+          }
+          return { key, success: true, cached: true }
+        } catch (error) {
+          console.warn(`Failed to preload ${key}:`, error)
+          return { key, success: false, error }
+        }
+      })
+      
+      const results = await Promise.allSettled(preloadPromises)
+      const successful = results.filter(r => r.status === 'fulfilled').length
+      console.log(`✅ Successfully preloaded ${successful}/${wallpaperKeys.length} wallpapers`)
+      
+    } catch (error) {
+      console.error('Error in preloading:', error)
+    } finally {
+      // Remove from preload queue
+      setPreloadQueue(prev => {
+        const newSet = new Set(prev)
+        wallpaperKeys.forEach(key => newSet.delete(key))
+        return newSet
+      })
+    }
+  }, [urlCache])
 
   // Format wallpapers from prop
   useEffect(() => {
@@ -82,16 +124,36 @@ export default function WallpaperButton({
           isS3Thumbnail: wallpaperData?.thumbnail?.startsWith('live-wallpapers/') || wallpaperData?.thumbnail?.startsWith('photo-wallpaper/')
         }
       })
-      setFormattedWallpapers(formatted as {
+      setFormattedWallpapers(formatted as Array<{
         key: string
         label: string
         url: string
         thumbnail: string
         type: 'video' | 'image'
         isS3Thumbnail?: boolean
-      }[])
+      }>)
+      
+      // Aggressively preload all wallpapers for instant previews
+      preloadWallpapers(wallpapers)
     }
-  }, [wallpapers])
+  }, [wallpapers, preloadWallpapers])
+
+  // Filter wallpapers by type
+  const liveWallpapers = formattedWallpapers.filter(w => w.type === 'video')
+  const photoWallpapers = formattedWallpapers.filter(w => w.type === 'image')
+
+  // Preload wallpapers when tab changes
+  useEffect(() => {
+    if (activeTab === 'live' && liveWallpapers.length > 0) {
+      // Preload first 5 live wallpapers for instant previews
+      const preloadKeys = liveWallpapers.slice(0, 5).map(w => w.url)
+      preloadWallpapers(preloadKeys)
+    } else if (activeTab === 'photo' && photoWallpapers.length > 0) {
+      // Preload first 5 photo wallpapers for instant previews
+      const preloadKeys = photoWallpapers.slice(0, 5).map(w => w.url)
+      preloadWallpapers(preloadKeys)
+    }
+  }, [activeTab, liveWallpapers, photoWallpapers, preloadWallpapers])
 
   const handleThemeSelect = (url: string, label: string) => {
     console.log('Wallpaper selected:', label, url)
@@ -107,10 +169,6 @@ export default function WallpaperButton({
     console.log('Wallpaper button clicked!')
     setIsOpen(!isOpen)
   }
-
-  // Filter wallpapers by type
-  const liveWallpapers = formattedWallpapers.filter(w => w.type === 'video')
-  const photoWallpapers = formattedWallpapers.filter(w => w.type === 'image')
 
   const getButtonSizeClasses = () => {
     switch (buttonSize) {
@@ -181,6 +239,16 @@ export default function WallpaperButton({
             <div className="text-white/60 text-sm">Loading wallpapers...</div>
           ) : (
             <>
+              {/* Preload Status */}
+              {preloadQueue.size > 0 && (
+                <div className="mb-3 p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
+                  <div className="flex items-center gap-2 text-blue-300 text-xs">
+                    <div className="w-3 h-3 border-2 border-blue-300/30 border-t-blue-300 rounded-full animate-spin"></div>
+                    <span>Preloading {preloadQueue.size} wallpapers for instant previews...</span>
+                  </div>
+                </div>
+              )}
+              
               {/* Preview Section */}
               {previewUrl && (
                 <div className="mb-3 p-2 bg-white/10 rounded-lg">
