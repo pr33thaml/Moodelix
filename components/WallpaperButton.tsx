@@ -27,8 +27,9 @@ export default function WallpaperButton({
   }>>([])
   const [loading, setLoading] = useState(false)
 
-  // Helper function to get signed URL from API with caching
-  const getSignedUrl = async (s3Key: string): Promise<string> => {
+  // Helper function to get wallpaper URL with multiple fallback methods
+  const getWallpaperUrl = async (s3Key: string): Promise<string> => {
+    // Try API first
     try {
       const response = await fetch('/api/wallpapers', {
         method: 'POST',
@@ -36,16 +37,34 @@ export default function WallpaperButton({
         body: JSON.stringify({ s3Key })
       })
       
-      if (!response.ok) {
-        throw new Error('Failed to get signed URL')
+      if (response.ok) {
+        const data = await response.json()
+        return data.signedUrl
       }
-      
-      const data = await response.json()
-      return data.signedUrl
     } catch (error) {
-      console.error('Error getting signed URL:', error)
-      throw error
+      console.log('API failed, trying fallbacks...')
     }
+    
+    // Fallback 1: Direct S3 URL
+    try {
+      const directUrl = `https://moodelix-wallpapers.s3.amazonaws.com/${s3Key}`
+      console.log('Trying direct S3 URL:', directUrl)
+      return directUrl
+    } catch (error) {
+      console.log('Direct S3 failed, trying local fallback...')
+    }
+    
+    // Fallback 2: Local file path (if files exist locally)
+    if (s3Key.startsWith('live-wallpapers/')) {
+      const filename = s3Key.replace('live-wallpapers/', '')
+      return `/wallpaper/live wallpapers/${filename}`
+    } else if (s3Key.startsWith('photo-wallpaper/')) {
+      const filename = s3Key.replace('photo-wallpaper/', '')
+      return `/wallpaper/photo wallpaper/${filename}`
+    }
+    
+    // Final fallback: return the key as-is
+    return s3Key
   }
 
   // Cache for signed URLs to avoid repeated API calls
@@ -57,7 +76,7 @@ export default function WallpaperButton({
       return urlCache.get(s3Key)!
     }
     
-    const signedUrl = await getSignedUrl(s3Key)
+    const signedUrl = await getWallpaperUrl(s3Key)
     setUrlCache(prev => new Map(prev).set(s3Key, signedUrl))
     return signedUrl
   }
@@ -242,7 +261,7 @@ export default function WallpaperButton({
                           try {
                             setPreviewUrl('loading')
                             console.log('🖼️ Loading preview for:', wallpaper.url)
-                            // Get wallpaper URL directly for preview
+                            // Get wallpaper URL for preview
                             const previewUrl = await getCachedSignedUrl(wallpaper.url)
                             console.log('✅ Preview URL loaded:', previewUrl)
                             setPreviewUrl(previewUrl)
@@ -295,7 +314,7 @@ export default function WallpaperButton({
                           try {
                             setPreviewUrl('loading')
                             console.log('🖼️ Loading preview for:', wallpaper.url)
-                            // Get wallpaper URL directly for preview
+                            // Get wallpaper URL for preview
                             const previewUrl = await getCachedSignedUrl(wallpaper.url)
                             console.log('✅ Preview URL loaded:', previewUrl)
                             setPreviewUrl(previewUrl)
