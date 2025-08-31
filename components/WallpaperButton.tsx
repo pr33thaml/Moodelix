@@ -234,12 +234,15 @@ export default function WallpaperButton({
                         onClick={() => handleThemeSelect(wallpaper.url, wallpaper.label)}
                         onMouseEnter={async () => {
                           try {
+                            setPreviewUrl('loading')
+                            console.log('🖼️ Loading preview for:', wallpaper.url)
                             // Get signed URL for preview
                             const signedUrl = await getCachedSignedUrl(wallpaper.url)
+                            console.log('✅ Preview URL loaded:', signedUrl)
                             setPreviewUrl(signedUrl)
                           } catch (error) {
-                            console.error('Error loading preview:', error)
-                            setPreviewUrl('loading')
+                            console.error('❌ Error loading preview:', error)
+                            setPreviewUrl('error')
                           }
                         }}
                         onMouseLeave={() => setPreviewUrl(null)}
@@ -281,12 +284,15 @@ export default function WallpaperButton({
                         onClick={() => handleThemeSelect(wallpaper.url, wallpaper.label)}
                         onMouseEnter={async () => {
                           try {
+                            setPreviewUrl('loading')
+                            console.log('🖼️ Loading preview for:', wallpaper.url)
                             // Get signed URL for preview
                             const signedUrl = await getCachedSignedUrl(wallpaper.url)
+                            console.log('✅ Preview URL loaded:', signedUrl)
                             setPreviewUrl(signedUrl)
                           } catch (error) {
-                            console.error('Error loading preview:', error)
-                            setPreviewUrl('loading')
+                            console.error('❌ Error loading preview:', error)
+                            setPreviewUrl('error')
                           }
                         }}
                         onMouseLeave={() => setPreviewUrl(null)}
