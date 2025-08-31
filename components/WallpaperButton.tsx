@@ -30,18 +30,11 @@ export default function WallpaperButton({
   // Helper function to get signed URL from API with caching
   const getSignedUrl = async (s3Key: string): Promise<string> => {
     try {
-      // Add timeout to prevent hanging requests
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 10000)
-      )
-      
-      const responsePromise = fetch('/api/wallpapers', {
+      const response = await fetch('/api/wallpapers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ s3Key })
       })
-      
-      const response = await Promise.race([responsePromise, timeoutPromise]) as Response
       
       if (!response.ok) {
         throw new Error('Failed to get signed URL')
@@ -57,7 +50,6 @@ export default function WallpaperButton({
 
   // Cache for signed URLs to avoid repeated API calls
   const [urlCache, setUrlCache] = useState<Map<string, string>>(new Map())
-  const [preloadQueue, setPreloadQueue] = useState<Set<string>>(new Set())
   
   // Get signed URL with caching
   const getCachedSignedUrl = async (s3Key: string): Promise<string> => {
@@ -69,61 +61,6 @@ export default function WallpaperButton({
     setUrlCache(prev => new Map(prev).set(s3Key, signedUrl))
     return signedUrl
   }
-
-  // Conservative preloading to prevent browser crashes
-  const preloadWallpapers = useCallback(async (wallpaperKeys: string[]) => {
-    if (wallpaperKeys.length === 0) return
-    
-    // Limit to max 3 concurrent requests to prevent crashes
-    const maxConcurrent = 3
-    const keysToPreload = wallpaperKeys.slice(0, maxConcurrent)
-    
-    console.log(`🚀 Preloading ${keysToPreload.length} wallpapers (limited for safety)...`)
-    
-    // Add to preload queue
-    setPreloadQueue(prev => new Set([...prev, ...keysToPreload]))
-    
-    try {
-      // Preload wallpapers with limited concurrency
-      for (let i = 0; i < keysToPreload.length; i += maxConcurrent) {
-        const batch = keysToPreload.slice(i, i + maxConcurrent)
-        
-        const batchPromises = batch.map(async (key) => {
-          try {
-            if (!urlCache.has(key)) {
-              const url = await getSignedUrl(key)
-              setUrlCache(prev => new Map(prev).set(key, url))
-              return { key, success: true }
-            }
-            return { key, success: true, cached: true }
-          } catch (error) {
-            console.warn(`Failed to preload ${key}:`, error)
-            return { key, success: false, error }
-          }
-        })
-        
-        // Wait for batch to complete before starting next batch
-        await Promise.allSettled(batchPromises)
-        
-        // Small delay between batches to prevent overwhelming the browser
-        if (i + maxConcurrent < keysToPreload.length) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-        }
-      }
-      
-      console.log(`✅ Completed preloading ${keysToPreload.length} wallpapers`)
-      
-    } catch (error) {
-      console.error('Error in preloading:', error)
-    } finally {
-      // Remove from preload queue
-      setPreloadQueue(prev => {
-        const newSet = new Set(prev)
-        keysToPreload.forEach(key => newSet.delete(key))
-        return newSet
-      })
-    }
-  }, [urlCache])
 
   // Format wallpapers from prop
   useEffect(() => {
@@ -154,28 +91,15 @@ export default function WallpaperButton({
         isS3Thumbnail?: boolean
       }>)
       
-      // Conservatively preload first few wallpapers for instant previews
-      const preloadKeys = wallpapers.slice(0, 3) // Only preload first 3
-      preloadWallpapers(preloadKeys)
+
     }
-  }, [wallpapers, preloadWallpapers])
+      }, [wallpapers])
 
   // Filter wallpapers by type
   const liveWallpapers = formattedWallpapers.filter(w => w.type === 'video')
   const photoWallpapers = formattedWallpapers.filter(w => w.type === 'image')
 
-  // Preload wallpapers when tab changes
-  useEffect(() => {
-    if (activeTab === 'live' && liveWallpapers.length > 0) {
-      // Preload first 3 live wallpapers for instant previews (conservative)
-      const preloadKeys = liveWallpapers.slice(0, 3).map(w => w.url)
-      preloadWallpapers(preloadKeys)
-    } else if (activeTab === 'photo' && photoWallpapers.length > 0) {
-      // Preload first 3 photo wallpapers for instant previews (conservative)
-      const preloadKeys = photoWallpapers.slice(0, 3).map(w => w.url)
-      preloadWallpapers(preloadKeys)
-    }
-  }, [activeTab, liveWallpapers, photoWallpapers, preloadWallpapers])
+
 
   const handleThemeSelect = (url: string, label: string) => {
     console.log('Wallpaper selected:', label, url)
@@ -261,15 +185,7 @@ export default function WallpaperButton({
             <div className="text-white/60 text-sm">Loading wallpapers...</div>
           ) : (
             <>
-              {/* Preload Status */}
-              {preloadQueue.size > 0 && (
-                <div className="mb-3 p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
-                  <div className="flex items-center gap-2 text-blue-300 text-xs">
-                    <div className="w-3 h-3 border-2 border-blue-300/30 border-t-blue-300 rounded-full animate-spin"></div>
-                    <span>Preloading {preloadQueue.size} wallpapers for instant previews...</span>
-                  </div>
-                </div>
-              )}
+
               
               {/* Preview Section */}
               {previewUrl && (
@@ -335,7 +251,10 @@ export default function WallpaperButton({
                             setPreviewUrl('error')
                           }
                         }}
-                        onMouseLeave={() => setPreviewUrl(null)}
+                        onMouseLeave={() => {
+                          // Don't clear preview immediately to prevent flickering
+                          setTimeout(() => setPreviewUrl(null), 100)
+                        }}
                         className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
                       >
                         <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
@@ -385,7 +304,10 @@ export default function WallpaperButton({
                             setPreviewUrl('error')
                           }
                         }}
-                        onMouseLeave={() => setPreviewUrl(null)}
+                        onMouseLeave={() => {
+                          // Don't clear preview immediately to prevent flickering
+                          setTimeout(() => setPreviewUrl(null), 100)
+                        }}
                         className="w-full flex items-center gap-3 p-2 rounded text-sm transition-colors text-white/80 hover:bg-white/10 hover:text-white"
                       >
                         <div className="w-12 h-8 bg-white/10 rounded overflow-hidden flex-shrink-0">
