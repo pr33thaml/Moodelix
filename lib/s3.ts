@@ -20,34 +20,16 @@ if (typeof window === 'undefined') {
 
 // Get signed URL for wallpaper (expires in 1 hour)
 export async function getWallpaperUrl(key: string): Promise<string> {
-  // Check if we have proper S3 credentials
-  if (s3Client && BUCKET_NAME && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-    try {
-      const command = new GetObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-      })
-      
-      return await getSignedUrl(s3Client, command, { expiresIn: 3600 })
-    } catch (error) {
-      console.error('S3 error, falling back to local files:', error)
-    }
+  if (!s3Client || !BUCKET_NAME) {
+    throw new Error('S3 client not initialized - server side only')
   }
   
-  // Fallback to local files if S3 is not configured
-  console.log('Using local file fallback for:', key)
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+  })
   
-  // Convert S3 key to local public path
-  if (key.startsWith('live-wallpapers/')) {
-    const filename = key.replace('live-wallpapers/', '')
-    return `/wallpaper/live wallpapers/${filename}`
-  } else if (key.startsWith('photo-wallpaper/')) {
-    const filename = key.replace('photo-wallpaper/', '')
-    return `/wallpaper/photo wallpaper/${filename}`
-  }
-  
-  // If no pattern matches, return the key as-is (for backward compatibility)
-  return key
+  return await getSignedUrl(s3Client, command, { expiresIn: 3600 })
 }
 
 // Get all wallpaper URLs

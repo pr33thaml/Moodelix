@@ -236,10 +236,10 @@ export default function WallpaperButton({
                           try {
                             setPreviewUrl('loading')
                             console.log('🖼️ Loading preview for:', wallpaper.url)
-                            // Get signed URL for preview
-                            const signedUrl = await getCachedSignedUrl(wallpaper.url)
-                            console.log('✅ Preview URL loaded:', signedUrl)
-                            setPreviewUrl(signedUrl)
+                            // Get wallpaper URL directly for preview
+                            const previewUrl = await getCachedSignedUrl(wallpaper.url)
+                            console.log('✅ Preview URL loaded:', previewUrl)
+                            setPreviewUrl(previewUrl)
                           } catch (error) {
                             console.error('❌ Error loading preview:', error)
                             setPreviewUrl('error')
@@ -279,17 +279,17 @@ export default function WallpaperButton({
                     <div className="text-white/40 text-sm text-center py-4">No photo wallpapers found</div>
                   ) : (
                     photoWallpapers.map((wallpaper) => (
-                                              <button
+                      <button
                         key={wallpaper.key}
                         onClick={() => handleThemeSelect(wallpaper.url, wallpaper.label)}
                         onMouseEnter={async () => {
                           try {
                             setPreviewUrl('loading')
                             console.log('🖼️ Loading preview for:', wallpaper.url)
-                            // Get signed URL for preview
-                            const signedUrl = await getCachedSignedUrl(wallpaper.url)
-                            console.log('✅ Preview URL loaded:', signedUrl)
-                            setPreviewUrl(signedUrl)
+                            // Get wallpaper URL directly for preview
+                            const previewUrl = await getCachedSignedUrl(wallpaper.url)
+                            console.log('✅ Preview URL loaded:', previewUrl)
+                            setPreviewUrl(previewUrl)
                           } catch (error) {
                             console.error('❌ Error loading preview:', error)
                             setPreviewUrl('error')

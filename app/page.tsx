@@ -221,9 +221,7 @@ export default function HomePage() {
     }
   }
 
-
-
-  // Wallpaper functions - Fast loading with background preloading
+  // Wallpaper functions - Fast loading with S3 signed URLs
   const loadWallpapers = useCallback(async () => {
     try {
       setIsLoadingWallpaper(true)
@@ -273,6 +271,7 @@ export default function HomePage() {
           console.error('Error loading wallpaper:', error)
           // Keep the beautiful animated background instead of falling back to white
           setBgMode('video')
+          setBgUrl('')
           setIsLoadingWallpaper(false)
         }
         
@@ -336,8 +335,8 @@ export default function HomePage() {
         return
       }
       
-      // Convert S3 key to signed URL if not cached
-      const signedUrl = await getSignedUrl(s3Key)
+              // Convert S3 key to signed URL
+        const wallpaperUrl = await getSignedUrl(s3Key)
       
       // Check if it's a live wallpaper (for slideshow compatibility)
       const isLiveWallpaper = s3Key.match(/\.(mp4|webm|mov)$/i)
@@ -358,8 +357,11 @@ export default function HomePage() {
         setBgMode('image')
       }
       
-      setBgUrl(signedUrl)
+      setBgUrl(wallpaperUrl)
       setIsLoadingWallpaper(false)
+      
+      // Cache the URL for future use
+      setUrlCache(prev => new Map(prev).set(s3Key, wallpaperUrl))
       
       // Preload next few wallpapers in background for instant switching
       if (isLiveWallpaper) {
@@ -372,17 +374,17 @@ export default function HomePage() {
             (currentIndex + 2) % liveWallpapers.length
           ]
           
-          // Preload in background without blocking UI
-          preloadIndices.forEach(async (index) => {
-            try {
-              const key = liveWallpapers[index].url
-              if (!urlCache.has(key)) {
-                await getSignedUrl(key)
+                      // Preload in background without blocking UI
+            preloadIndices.forEach(async (index) => {
+              try {
+                const key = liveWallpapers[index].url
+                if (!urlCache.has(key)) {
+                  await getSignedUrl(key)
+                }
+              } catch (error) {
+                // Silent fail for background preloading
               }
-            } catch (error) {
-              // Silent fail for background preloading
-            }
-          })
+            })
         }
       }
     } catch (error) {
@@ -503,7 +505,7 @@ export default function HomePage() {
     }, slideshowSpeed === 'slow' ? 8000 : slideshowSpeed === 'medium' ? 5000 : 3000)
     
     return () => clearInterval(slideshowTimer)
-  }, [slideshowEnabled, wallpapers.length, slideshowRandomized, slideshowSpeed, getSignedUrl, urlCache, currentWallpaperIndex])
+  }, [slideshowEnabled, wallpapers.length, slideshowRandomized, slideshowSpeed, urlCache, currentWallpaperIndex])
 
   // Ensure individual wallpapers loop when slideshow is disabled
   useEffect(() => {
