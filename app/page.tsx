@@ -223,7 +223,7 @@ export default function HomePage() {
 
 
 
-  // Wallpaper functions - Simple loading with cache
+  // Wallpaper functions - Fast loading with background preloading
   const loadWallpapers = useCallback(async () => {
     try {
       setIsLoadingWallpaper(true)
@@ -242,9 +242,6 @@ export default function HomePage() {
         setCurrentWallpaperIndex(randomIndex)
         setBgMode('video')
         
-        // Set a beautiful animated background immediately to prevent white/grey
-        setBgUrl('')
-        
         // Start loading the wallpaper immediately
         const randomWallpaperKey = liveWallpapers[randomIndex].url
         
@@ -252,11 +249,30 @@ export default function HomePage() {
           const randomWallpaperUrl = await getSignedUrl(randomWallpaperKey)
           setBgUrl(randomWallpaperUrl)
           setIsLoadingWallpaper(false)
+          
+          // Start preloading next few wallpapers in background for instant switching
+          const preloadIndices = [
+            (randomIndex + 1) % liveWallpapers.length,
+            (randomIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+            (randomIndex + 2) % liveWallpapers.length
+          ]
+          
+          // Preload in background without blocking UI
+          preloadIndices.forEach(async (index) => {
+            try {
+              const key = liveWallpapers[index].url
+              if (!urlCache.has(key)) {
+                await getSignedUrl(key)
+              }
+            } catch (error) {
+              // Silent fail for background preloading
+            }
+          })
+          
         } catch (error) {
           console.error('Error loading wallpaper:', error)
-          // Keep the beautiful animated background instead of falling back to grey
+          // Keep the beautiful animated background instead of falling back to white
           setBgMode('video')
-          setBgUrl('')
           setIsLoadingWallpaper(false)
         }
         
@@ -291,6 +307,32 @@ export default function HomePage() {
         
         setBgMode(isLiveWallpaper ? 'video' : 'image')
         setIsLoadingWallpaper(false)
+        
+        // Preload next few wallpapers in background for instant switching
+        if (isLiveWallpaper) {
+          const liveWallpapers = getLiveWallpapers()
+          const currentIndex = liveWallpapers.findIndex(w => w.url === s3Key)
+          if (currentIndex >= 0) {
+            const preloadIndices = [
+              (currentIndex + 1) % liveWallpapers.length,
+              (currentIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+              (currentIndex + 2) % liveWallpapers.length
+            ]
+            
+            // Preload in background without blocking UI
+            preloadIndices.forEach(async (index) => {
+              try {
+                const key = liveWallpapers[index].url
+                if (!urlCache.has(key)) {
+                  await getSignedUrl(key)
+                }
+              } catch (error) {
+                // Silent fail for background preloading
+              }
+            })
+          }
+        }
+        
         return
       }
       
@@ -318,8 +360,36 @@ export default function HomePage() {
       
       setBgUrl(signedUrl)
       setIsLoadingWallpaper(false)
+      
+      // Preload next few wallpapers in background for instant switching
+      if (isLiveWallpaper) {
+        const liveWallpapers = getLiveWallpapers()
+        const currentIndex = liveWallpapers.findIndex(w => w.url === s3Key)
+        if (currentIndex >= 0) {
+          const preloadIndices = [
+            (currentIndex + 1) % liveWallpapers.length,
+            (currentIndex - 1 + liveWallpapers.length) % liveWallpapers.length,
+            (currentIndex + 2) % liveWallpapers.length
+          ]
+          
+          // Preload in background without blocking UI
+          preloadIndices.forEach(async (index) => {
+            try {
+              const key = liveWallpapers[index].url
+              if (!urlCache.has(key)) {
+                await getSignedUrl(key)
+              }
+            } catch (error) {
+              // Silent fail for background preloading
+            }
+          })
+        }
+      }
     } catch (error) {
       console.error('Error loading wallpaper:', error)
+      // Keep the beautiful animated background instead of falling back to white
+      setBgMode('video')
+      setBgUrl('')
       setIsLoadingWallpaper(false)
     }
   }
@@ -328,6 +398,39 @@ export default function HomePage() {
     setMounted(true)
     setTimeString(new Date().toLocaleTimeString())
     loadWallpapers()
+    
+    // Preload first few wallpapers immediately for faster switching
+    const preloadInitial = async () => {
+      try {
+        const liveWallpapers = getLiveWallpapers()
+        const photoWallpapers = getPhotoWallpapers()
+        
+        // Preload first 3 wallpapers in background
+        const preloadKeys = [
+          ...liveWallpapers.slice(0, 2).map(w => w.url),
+          ...photoWallpapers.slice(0, 1).map(w => w.url)
+        ]
+        
+        console.log('🚀 Preloading initial wallpapers...')
+        
+        // Preload in parallel without blocking UI
+        preloadKeys.forEach(async (key) => {
+          try {
+            if (!urlCache.has(key)) {
+              await getSignedUrl(key)
+            }
+          } catch (error) {
+            // Silent fail for background preloading
+          }
+        })
+        
+      } catch (error) {
+        console.error('Error in initial preloading:', error)
+      }
+    }
+    
+    // Start preloading after a short delay
+    setTimeout(preloadInitial, 500)
   }, [loadWallpapers])
 
   useEffect(() => {
@@ -472,7 +575,12 @@ export default function HomePage() {
           onLoadStart={() => console.log('🎬 Video loading started')}
           onCanPlay={() => console.log('🎬 Video can play')}
           onLoadedData={() => console.log('🎬 Video data loaded')}
-          onError={(e) => console.error('🎬 Video error:', e)}
+          onError={(e) => {
+            console.error('🎬 Video error:', e)
+            // Fallback to animated background if video fails
+            setBgMode('video')
+            setBgUrl('')
+          }}
         />
       ) : bgMode === 'image' && bgUrl ? (
         <img 
@@ -500,7 +608,6 @@ export default function HomePage() {
                 <div className="text-6xl mb-4 animate-pulse">🎬</div>
                 <div className="text-xl font-medium mb-2">Loading Live Wallpaper...</div>
                 <div className="text-sm text-white/40">This will take just a moment</div>
-
               </>
             ) : (
               <>
@@ -606,9 +713,9 @@ export default function HomePage() {
               
               {/* Loading indicator */}
               {isLoadingWallpaper && (
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 border border-white/30 border-t-white/80 rounded-full animate-spin"></div>
-                  <span className="text-white/40 text-xs">Loading...</span>
+                <div className="flex items-center gap-2 text-white/40 text-xs">
+                  <div className="w-3 h-3 border-2 border-white/20 border-t-white/60 rounded-full animate-spin"></div>
+                  <span>Loading...</span>
                 </div>
               )}
             </>

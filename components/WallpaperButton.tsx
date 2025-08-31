@@ -27,7 +27,7 @@ export default function WallpaperButton({
   }>>([])
   const [loading, setLoading] = useState(false)
 
-  // Helper function to get signed URL from API
+  // Helper function to get signed URL from API with caching
   const getSignedUrl = async (s3Key: string): Promise<string> => {
     try {
       const response = await fetch('/api/wallpapers', {
@@ -46,6 +46,20 @@ export default function WallpaperButton({
       console.error('Error getting signed URL:', error)
       throw error
     }
+  }
+
+  // Cache for signed URLs to avoid repeated API calls
+  const [urlCache, setUrlCache] = useState<Map<string, string>>(new Map())
+  
+  // Get signed URL with caching
+  const getCachedSignedUrl = async (s3Key: string): Promise<string> => {
+    if (urlCache.has(s3Key)) {
+      return urlCache.get(s3Key)!
+    }
+    
+    const signedUrl = await getSignedUrl(s3Key)
+    setUrlCache(prev => new Map(prev).set(s3Key, signedUrl))
+    return signedUrl
   }
 
   // Format wallpapers from prop
@@ -185,12 +199,24 @@ export default function WallpaperButton({
                       muted 
                       loop 
                       playsInline
+                      onError={(e) => {
+                        console.error('Preview video error:', e)
+                        setPreviewUrl('error')
+                      }}
                     />
+                  ) : previewUrl === 'error' ? (
+                    <div className="w-full h-28 bg-gradient-to-br from-red-600 to-red-800 rounded flex items-center justify-center">
+                      <div className="text-center text-white/60">
+                        <div className="text-2xl mb-2">❌</div>
+                        <div className="text-sm">Preview Error</div>
+                      </div>
+                    </div>
                   ) : (
                     <img 
                       src={previewUrl} 
                       className="w-full h-28 object-cover rounded"
                       alt="Preview"
+                      onError={() => setPreviewUrl('error')}
                     />
                   )}
                 </div>
@@ -209,7 +235,7 @@ export default function WallpaperButton({
                         onMouseEnter={async () => {
                           try {
                             // Get signed URL for preview
-                            const signedUrl = await getSignedUrl(wallpaper.url)
+                            const signedUrl = await getCachedSignedUrl(wallpaper.url)
                             setPreviewUrl(signedUrl)
                           } catch (error) {
                             console.error('Error loading preview:', error)
@@ -256,7 +282,7 @@ export default function WallpaperButton({
                         onMouseEnter={async () => {
                           try {
                             // Get signed URL for preview
-                            const signedUrl = await getSignedUrl(wallpaper.url)
+                            const signedUrl = await getCachedSignedUrl(wallpaper.url)
                             setPreviewUrl(signedUrl)
                           } catch (error) {
                             console.error('Error loading preview:', error)
