@@ -30,11 +30,18 @@ export default function WallpaperButton({
   // Helper function to get signed URL from API with caching
   const getSignedUrl = async (s3Key: string): Promise<string> => {
     try {
-      const response = await fetch('/api/wallpapers', {
+      // Add timeout to prevent hanging requests
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
+      )
+      
+      const responsePromise = fetch('/api/wallpapers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ s3Key })
       })
+      
+      const response = await Promise.race([responsePromise, timeoutPromise]) as Response
       
       if (!response.ok) {
         throw new Error('Failed to get signed URL')
@@ -63,34 +70,48 @@ export default function WallpaperButton({
     return signedUrl
   }
 
-  // Aggressive preloading for instant previews
+  // Conservative preloading to prevent browser crashes
   const preloadWallpapers = useCallback(async (wallpaperKeys: string[]) => {
     if (wallpaperKeys.length === 0) return
     
-    console.log(`🚀 Preloading ${wallpaperKeys.length} wallpapers for instant previews...`)
+    // Limit to max 3 concurrent requests to prevent crashes
+    const maxConcurrent = 3
+    const keysToPreload = wallpaperKeys.slice(0, maxConcurrent)
+    
+    console.log(`🚀 Preloading ${keysToPreload.length} wallpapers (limited for safety)...`)
     
     // Add to preload queue
-    setPreloadQueue(prev => new Set([...prev, ...wallpaperKeys]))
+    setPreloadQueue(prev => new Set([...prev, ...keysToPreload]))
     
     try {
-      // Preload all wallpapers in parallel
-      const preloadPromises = wallpaperKeys.map(async (key) => {
-        try {
-          if (!urlCache.has(key)) {
-            const url = await getSignedUrl(key)
-            setUrlCache(prev => new Map(prev).set(key, url))
-            return { key, success: true }
+      // Preload wallpapers with limited concurrency
+      for (let i = 0; i < keysToPreload.length; i += maxConcurrent) {
+        const batch = keysToPreload.slice(i, i + maxConcurrent)
+        
+        const batchPromises = batch.map(async (key) => {
+          try {
+            if (!urlCache.has(key)) {
+              const url = await getSignedUrl(key)
+              setUrlCache(prev => new Map(prev).set(key, url))
+              return { key, success: true }
+            }
+            return { key, success: true, cached: true }
+          } catch (error) {
+            console.warn(`Failed to preload ${key}:`, error)
+            return { key, success: false, error }
           }
-          return { key, success: true, cached: true }
-        } catch (error) {
-          console.warn(`Failed to preload ${key}:`, error)
-          return { key, success: false, error }
+        })
+        
+        // Wait for batch to complete before starting next batch
+        await Promise.allSettled(batchPromises)
+        
+        // Small delay between batches to prevent overwhelming the browser
+        if (i + maxConcurrent < keysToPreload.length) {
+          await new Promise(resolve => setTimeout(resolve, 100))
         }
-      })
+      }
       
-      const results = await Promise.allSettled(preloadPromises)
-      const successful = results.filter(r => r.status === 'fulfilled').length
-      console.log(`✅ Successfully preloaded ${successful}/${wallpaperKeys.length} wallpapers`)
+      console.log(`✅ Completed preloading ${keysToPreload.length} wallpapers`)
       
     } catch (error) {
       console.error('Error in preloading:', error)
@@ -98,7 +119,7 @@ export default function WallpaperButton({
       // Remove from preload queue
       setPreloadQueue(prev => {
         const newSet = new Set(prev)
-        wallpaperKeys.forEach(key => newSet.delete(key))
+        keysToPreload.forEach(key => newSet.delete(key))
         return newSet
       })
     }
@@ -133,8 +154,9 @@ export default function WallpaperButton({
         isS3Thumbnail?: boolean
       }>)
       
-      // Aggressively preload all wallpapers for instant previews
-      preloadWallpapers(wallpapers)
+      // Conservatively preload first few wallpapers for instant previews
+      const preloadKeys = wallpapers.slice(0, 3) // Only preload first 3
+      preloadWallpapers(preloadKeys)
     }
   }, [wallpapers, preloadWallpapers])
 
@@ -145,12 +167,12 @@ export default function WallpaperButton({
   // Preload wallpapers when tab changes
   useEffect(() => {
     if (activeTab === 'live' && liveWallpapers.length > 0) {
-      // Preload first 5 live wallpapers for instant previews
-      const preloadKeys = liveWallpapers.slice(0, 5).map(w => w.url)
+      // Preload first 3 live wallpapers for instant previews (conservative)
+      const preloadKeys = liveWallpapers.slice(0, 3).map(w => w.url)
       preloadWallpapers(preloadKeys)
     } else if (activeTab === 'photo' && photoWallpapers.length > 0) {
-      // Preload first 5 photo wallpapers for instant previews
-      const preloadKeys = photoWallpapers.slice(0, 5).map(w => w.url)
+      // Preload first 3 photo wallpapers for instant previews (conservative)
+      const preloadKeys = photoWallpapers.slice(0, 3).map(w => w.url)
       preloadWallpapers(preloadKeys)
     }
   }, [activeTab, liveWallpapers, photoWallpapers, preloadWallpapers])
