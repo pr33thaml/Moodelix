@@ -10,9 +10,10 @@ interface CenterMenuProps {
   wallpapers: string[]
   buttonSize?: 'small' | 'medium' | 'large'
   onClick?: () => void
+  blurIntensity?: number
 }
 
-export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus, onHome, wallpapers, buttonSize = 'medium', onClick }: CenterMenuProps) {
+export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus, onHome, wallpapers, buttonSize = 'medium', onClick, blurIntensity = 10 }: CenterMenuProps) {
   const getButtonSizeClasses = () => {
     switch (buttonSize) {
       case 'small':
@@ -129,6 +130,7 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
         wallpapers={wallpapers}
         buttonSize={buttonSize}
         onClick={onClick}
+        blurIntensity={blurIntensity}
       />
     </div>
   )

@@ -6,9 +6,10 @@ interface BugReportPopupProps {
   isOpen: boolean
   onClose: () => void
   onClick?: () => void
+  blurIntensity?: number
 }
 
-export default function BugReportPopup({ isOpen, onClose, onClick }: BugReportPopupProps) {
+export default function BugReportPopup({ isOpen, onClose, onClick, blurIntensity = 10 }: BugReportPopupProps) {
   const [bugDescription, setBugDescription] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,7 +61,7 @@ export default function BugReportPopup({ isOpen, onClose, onClick }: BugReportPo
 
   return (
     <div className="fixed inset-0 z-[99] bg-black/20" onClick={onClose}>
-      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/30 border border-white/20 rounded-lg p-6 min-w-[400px] max-w-[500px] z-[100] backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/30 border border-white/20 rounded-lg p-6 min-w-[400px] max-w-[500px] z-[100]" style={{backdropFilter: `blur(${blurIntensity}px)`}} onClick={(e) => e.stopPropagation()}>
         <div className="text-white text-lg font-medium mb-4">Report a Bug</div>
         
         {!isSubmitted ? (

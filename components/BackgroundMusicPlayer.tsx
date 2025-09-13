@@ -8,9 +8,10 @@ interface BackgroundMusicPlayerProps {
   isVisible: boolean
   isPlaying: boolean
   onMinimize: () => void
+  blurIntensity?: number
 }
 
-export default function BackgroundMusicPlayer({ url, type, isVisible, isPlaying, onMinimize }: BackgroundMusicPlayerProps) {
+export default function BackgroundMusicPlayer({ url, type, isVisible, isPlaying, onMinimize, blurIntensity = 10 }: BackgroundMusicPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [size, setSize] = useState({ width: 480, height: 288 }) // Medium default size
 
@@ -64,12 +65,13 @@ export default function BackgroundMusicPlayer({ url, type, isVisible, isPlaying,
 
   return (
     <div 
-      className={`fixed bottom-20 right-6 z-30 bg-black/30 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 ${
+      className={`fixed bottom-20 right-6 z-30 bg-black/30 border border-white/20 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 ${
         isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
       }`}
       style={{ 
         width: size.width, 
-        height: size.height
+        height: size.height,
+        backdropFilter: `blur(${blurIntensity}px)`
       }}
     >
       <div className="p-3 bg-white/5 border-b border-white/10">

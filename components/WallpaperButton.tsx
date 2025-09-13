@@ -7,12 +7,14 @@ export default function WallpaperButton({
   onWallpaperChange, 
   wallpapers, 
   buttonSize = 'medium',
-  onClick 
+  onClick,
+  blurIntensity = 10
 }: { 
   onWallpaperChange?: (url: string) => void, 
   wallpapers: string[]
   buttonSize?: 'small' | 'medium' | 'large'
   onClick?: () => void
+  blurIntensity?: number
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -167,7 +169,7 @@ export default function WallpaperButton({
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 bg-black/30 border border-white/20 rounded-lg p-3 min-w-[320px] z-[100] backdrop-blur-sm">
+        <div className="absolute bottom-full left-0 mb-2 bg-black/30 border border-white/20 rounded-lg p-3 min-w-[320px] z-[100]" style={{backdropFilter: `blur(${blurIntensity}px)`}}>
           <div className="text-white text-sm font-medium mb-3">Select Wallpaper</div>
           
           {/* Tab Navigation */}

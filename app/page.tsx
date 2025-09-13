@@ -71,7 +71,8 @@ export default function HomePage() {
   const [showTodo, setShowTodo] = useState(false)
   const [slideshowEnabled, setSlideshowEnabled] = useState(false)
   const [slideshowRandomized, setSlideshowRandomized] = useState(true)
-  const [slideshowSpeed, setSlideshowSpeed] = useState<'slow' | 'medium' | 'fast'>('fast')
+  const [slideshowSpeed, setSlideshowSpeed] = useState<number>(10) // 5s to 60s in seconds
+  const [blurIntensity, setBlurIntensity] = useState<number>(10) // 0 to 20 for backdrop-blur
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showFocus, setShowFocus] = useState(false)
   const [showSlideshow, setShowSlideshow] = useState(true)
@@ -87,6 +88,36 @@ export default function HomePage() {
   const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [newTaskText, setNewTaskText] = useState('')
   const [newFocusTask, setNewFocusTask] = useState('')
+  
+  // Customizable timer durations (in minutes)
+  const [timerDurations, setTimerDurations] = useState({
+    focus: 25,
+    shortBreak: 5,
+    longBreak: 15
+  })
+  
+  // Streak system state
+  const [streakData, setStreakData] = useState({
+    currentStreak: 0,
+    totalFocusedHours: 0,
+    dailyGoal: 4, // hours
+    todayFocusedMinutes: 0,
+    lastFocusDate: null as string | null
+  })
+  
+  // Auto break system state
+  const [autoBreakSettings, setAutoBreakSettings] = useState({
+    enabled: true,
+    breakDuration: 10, // minutes
+    skipBreaks: false
+  })
+  const [scheduledBreaks, setScheduledBreaks] = useState<Array<{
+    id: string
+    time: number // minutes from start
+    completed: boolean
+    skipped: boolean
+  }>>([])
+  const [currentSessionStart, setCurrentSessionStart] = useState<number | null>(null)
   
   const [wallpapers, setWallpapers] = useState<string[]>([])
   const [allWallpapers, setAllWallpapers] = useState<string[]>([])
@@ -128,14 +159,36 @@ export default function HomePage() {
           if (prev <= 1) {
             setIsTimerRunning(false)
             if (focusMode === 'focus') {
+              // Check if we have more focus segments or if this is the end
+              const remainingBreaks = scheduledBreaks.filter(b => !b.completed && !b.skipped)
+              
+              if (remainingBreaks.length > 0 && autoBreakSettings.enabled && !autoBreakSettings.skipBreaks) {
+                // Take a break
               setFocusMode('shortBreak')
-              setTimeLeft(5 * 60)
+                setTimeLeft(autoBreakSettings.breakDuration * 60)
+                completeBreak(remainingBreaks[0].id)
+              } else {
+                // Session complete
+                updateStreakOnFocusComplete()
+                setFocusMode('shortBreak')
+                setTimeLeft(timerDurations.shortBreak * 60)
+              }
             } else if (focusMode === 'shortBreak') {
+              // Check if there are more focus segments
+              const remainingBreaks = scheduledBreaks.filter(b => !b.completed && !b.skipped)
+              
+              if (remainingBreaks.length > 0) {
+                // Continue with next focus segment
               setFocusMode('focus')
-              setTimeLeft(25 * 60)
+                setTimeLeft(remainingBreaks[0].time * 60)
+            } else {
+                // All segments complete, start new session
+              setFocusMode('focus')
+                setTimeLeft(timerDurations.focus * 60)
+              }
             } else {
               setFocusMode('focus')
-              setTimeLeft(25 * 60)
+              setTimeLeft(timerDurations.focus * 60)
             }
             return 0
           }
@@ -144,7 +197,7 @@ export default function HomePage() {
       }, 1000)
     }
     return () => clearInterval(interval)
-  }, [isTimerRunning, timeLeft, focusMode])
+  }, [isTimerRunning, timeLeft, focusMode, timerDurations, scheduledBreaks, autoBreakSettings])
 
   // Task management functions
   const addTask = (text: string) => {
@@ -167,29 +220,202 @@ export default function HomePage() {
     setTasks(prev => prev.filter(task => task.id !== id))
   }
 
-  const startTimer = () => setIsTimerRunning(true)
+  const startTimer = () => {
+    if (focusMode === 'focus') {
+      startFocusSession()
+    } else {
+      setIsTimerRunning(true)
+    }
+  }
   const pauseTimer = () => setIsTimerRunning(false)
   
   const resetTimer = () => {
     setIsTimerRunning(false)
     if (focusMode === 'focus') {
-      setTimeLeft(25 * 60)
+      setTimeLeft(timerDurations.focus * 60)
     } else if (focusMode === 'shortBreak') {
-      setTimeLeft(5 * 60)
+      setTimeLeft(timerDurations.shortBreak * 60)
     } else {
-      setTimeLeft(15 * 60)
+      setTimeLeft(timerDurations.longBreak * 60)
     }
+  }
+
+  // Timer duration control functions
+  const increaseTimerDuration = (mode: 'focus' | 'shortBreak' | 'longBreak') => {
+    setTimerDurations(prev => ({
+      ...prev,
+      [mode]: Math.min(prev[mode] + 1, 60) // Max 60 minutes
+    }))
+    
+    // If this is the current mode and timer is not running, update the display
+    if (focusMode === mode && !isTimerRunning) {
+      setTimeLeft((prev) => Math.min(prev + 60, 60 * 60)) // Add 1 minute, max 60 minutes
+    }
+  }
+
+  const decreaseTimerDuration = (mode: 'focus' | 'shortBreak' | 'longBreak') => {
+    const minMinutes = mode === 'focus' ? 25 : 1 // Focus sessions minimum 25 minutes
+    setTimerDurations(prev => ({
+      ...prev,
+      [mode]: Math.max(prev[mode] - 1, minMinutes)
+    }))
+    
+    // If this is the current mode and timer is not running, update the display
+    if (focusMode === mode && !isTimerRunning) {
+      setTimeLeft((prev) => Math.max(prev - 60, minMinutes * 60)) // Subtract 1 minute, respect minimum
+    }
+  }
+
+  // Streak system functions
+  const updateStreakOnFocusComplete = () => {
+    const today = new Date().toDateString()
+    const focusDurationMinutes = timerDurations.focus
+    
+    setStreakData(prev => {
+      const isNewDay = prev.lastFocusDate !== today
+      const newTodayFocusedMinutes = isNewDay ? focusDurationMinutes : prev.todayFocusedMinutes + focusDurationMinutes
+      const newTotalFocusedHours = prev.totalFocusedHours + (focusDurationMinutes / 60)
+      
+      // Calculate new streak
+      let newStreak = prev.currentStreak
+      if (isNewDay) {
+        // Check if yesterday had focus (streak continues) or if this is the first day
+        if (prev.lastFocusDate) {
+          const yesterday = new Date()
+          yesterday.setDate(yesterday.getDate() - 1)
+          const yesterdayString = yesterday.toDateString()
+          
+          if (prev.lastFocusDate === yesterdayString) {
+            newStreak = prev.currentStreak + 1
+          } else {
+            newStreak = 1 // Reset streak if gap in days
+          }
+        } else {
+          newStreak = 1 // First day
+        }
+      }
+      
+      return {
+        ...prev,
+        currentStreak: newStreak,
+        totalFocusedHours: newTotalFocusedHours,
+        todayFocusedMinutes: newTodayFocusedMinutes,
+        lastFocusDate: today
+      }
+    })
+  }
+
+  const updateDailyGoal = (newGoal: number) => {
+    setStreakData(prev => ({
+      ...prev,
+      dailyGoal: Math.max(1, Math.min(12, newGoal)) // Between 1-12 hours
+    }))
+  }
+
+  // Auto break system functions
+  const calculateAutoBreaks = (totalMinutes: number) => {
+    if (!autoBreakSettings.enabled || autoBreakSettings.skipBreaks) return []
+    
+    const breaks: Array<{ id: string; time: number; completed: boolean; skipped: boolean }> = []
+    
+    if (totalMinutes >= 35 && totalMinutes < 95) {
+      // 35-94 minutes: 1 break at 20 minutes
+      breaks.push({
+        id: 'break-1',
+        time: 20,
+        completed: false,
+        skipped: false
+      })
+    } else if (totalMinutes >= 95 && totalMinutes < 125) {
+      // 95-124 minutes: 2 breaks at 20 and 60 minutes
+      breaks.push(
+        {
+          id: 'break-1',
+          time: 20,
+          completed: false,
+          skipped: false
+        },
+        {
+          id: 'break-2',
+          time: 60,
+          completed: false,
+          skipped: false
+        }
+      )
+    } else if (totalMinutes >= 125) {
+      // 125+ minutes: 3 breaks at 20, 60, and 100 minutes
+      breaks.push(
+        {
+          id: 'break-1',
+          time: 20,
+          completed: false,
+          skipped: false
+        },
+        {
+          id: 'break-2',
+          time: 60,
+          completed: false,
+          skipped: false
+        },
+        {
+          id: 'break-3',
+          time: 100,
+          completed: false,
+          skipped: false
+        }
+      )
+    }
+    
+    return breaks
+  }
+
+  const startFocusSession = () => {
+    const now = Date.now()
+    setCurrentSessionStart(now)
+    
+    // Calculate breaks for current focus duration
+    const breaks = calculateAutoBreaks(timerDurations.focus)
+    setScheduledBreaks(breaks)
+    
+    // Reset timer to first segment
+    if (breaks.length > 0) {
+      setTimeLeft(breaks[0].time * 60) // Start with first break time
+    } else {
+      setTimeLeft(timerDurations.focus * 60) // No breaks, use full duration
+    }
+    
+    setIsTimerRunning(true)
+  }
+
+  const skipBreak = (breakId: string) => {
+    setScheduledBreaks(prev => 
+      prev.map(breakItem => 
+        breakItem.id === breakId 
+          ? { ...breakItem, skipped: true }
+          : breakItem
+      )
+    )
+  }
+
+  const completeBreak = (breakId: string) => {
+    setScheduledBreaks(prev => 
+      prev.map(breakItem => 
+        breakItem.id === breakId 
+          ? { ...breakItem, completed: true }
+          : breakItem
+      )
+    )
   }
 
   const switchMode = (mode: 'focus' | 'shortBreak' | 'longBreak') => {
     setFocusMode(mode)
     setIsTimerRunning(false)
     if (mode === 'focus') {
-      setTimeLeft(25 * 60)
+      setTimeLeft(timerDurations.focus * 60)
     } else if (mode === 'shortBreak') {
-      setTimeLeft(5 * 60)
+      setTimeLeft(timerDurations.shortBreak * 60)
     } else {
-      setTimeLeft(15 * 60)
+      setTimeLeft(timerDurations.longBreak * 60)
     }
   }
 
@@ -502,7 +728,7 @@ export default function HomePage() {
       } catch (error) {
         console.error('Error in slideshow:', error)
       }
-    }, slideshowSpeed === 'slow' ? 8000 : slideshowSpeed === 'medium' ? 5000 : 3000)
+    }, slideshowSpeed * 1000) // Convert seconds to milliseconds
     
     return () => clearInterval(slideshowTimer)
   }, [slideshowEnabled, wallpapers.length, slideshowRandomized, slideshowSpeed, urlCache, currentWallpaperIndex])
@@ -623,7 +849,7 @@ export default function HomePage() {
       <div className="video-overlay" />
 
       {/* Hide Everything Toggle - Always Visible */}
-      <div className="fixed bottom-6 left-6 z-[60]">
+        <div className="fixed bottom-6 left-6 z-[40]">
         <Tooltip content={hideEverything ? 'Show Everything' : 'Hide Everything'}>
           <button
             onClick={() => {
@@ -654,7 +880,7 @@ export default function HomePage() {
       {!hideEverything && (
         <>
           {/* Header */}
-      <div className="fixed top-8 inset-x-8 z-20 flex items-center justify-between">
+      <div className="fixed top-8 inset-x-8 z-[80] flex items-center justify-between">
         <div className="flex items-center gap-2">
           {showSlideshow && (
             <>
@@ -811,7 +1037,7 @@ export default function HomePage() {
             playExitSoundIfEnabled()
             setShowSettings(false)
           }}>
-          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-4 min-w-[280px] z-[100] backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-4 min-w-[280px] z-[100]" style={{backdropFilter: `blur(${blurIntensity}px)`}} onClick={(e) => e.stopPropagation()}>
           <div className="text-white text-sm font-medium mb-4">Settings</div>
           
           <div className="flex items-center justify-between mb-3">
@@ -898,22 +1124,43 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
             <span className="text-white/80 text-xs">Slideshow Speed</span>
-            <div className="flex gap-1">
-              {(['slow', 'medium', 'fast'] as const).map((speed) => (
-                <button
-                  key={speed}
-                  onClick={() => setSlideshowSpeed(speed)}
-                  className={`px-2 py-1 text-xs rounded transition-colors ${
-                    slideshowSpeed === speed
-                      ? 'bg-white/30 text-white'
-                      : 'bg-white/10 text-white/60 hover:text-white/80'
-                  }`}
-                >
-                  {speed.charAt(0).toUpperCase() + speed.slice(1)}
-                </button>
-              ))}
+              <span className="text-white/60 text-xs">{slideshowSpeed}s</span>
+            </div>
+            <div className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg backdrop-blur">
+              <input
+                type="range"
+                min="5"
+                max="60"
+                value={slideshowSpeed}
+                onChange={(e) => setSlideshowSpeed(Number(e.target.value))}
+                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                style={{
+                  background: `linear-gradient(to right, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.3) ${((slideshowSpeed - 5) / 55) * 100}%, rgba(255,255,255,0.1) ${((slideshowSpeed - 5) / 55) * 100}%, rgba(255,255,255,0.1) 100%)`
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/80 text-xs">Blur Intensity</span>
+              <span className="text-white/60 text-xs">{blurIntensity}px</span>
+            </div>
+            <div className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg backdrop-blur">
+              <input
+                type="range"
+                min="0"
+                max="20"
+                value={blurIntensity}
+                onChange={(e) => setBlurIntensity(Number(e.target.value))}
+                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                style={{
+                  background: `linear-gradient(to right, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.3) ${(blurIntensity / 20) * 100}%, rgba(255,255,255,0.1) ${(blurIntensity / 20) * 100}%, rgba(255,255,255,0.1) 100%)`
+                }}
+              />
             </div>
           </div>
 
@@ -1055,7 +1302,7 @@ export default function HomePage() {
           playExitSoundIfEnabled()
           setShowSupportPanel(false)
         }}>
-          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-4 min-w-[280px] z-[100] backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-4 min-w-[280px] z-[100]" style={{backdropFilter: `blur(${blurIntensity}px)`}} onClick={(e) => e.stopPropagation()}>
             <div className="text-white text-sm font-medium mb-4">Support & Links</div>
             
             <div className="space-y-3">
@@ -1121,6 +1368,7 @@ export default function HomePage() {
         isOpen={showBugReport}
         onClose={() => setShowBugReport(false)}
         onClick={playClickSoundIfEnabled}
+        blurIntensity={blurIntensity}
       />
 
       {/* Font Panel */}
@@ -1129,7 +1377,7 @@ export default function HomePage() {
           playExitSoundIfEnabled()
           setShowFontPanel(false)
         }}>
-          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-3 min-w-[220px] max-w-[240px] z-[100] backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-3 min-w-[220px] max-w-[240px] z-[100]" style={{backdropFilter: `blur(${blurIntensity}px)`}} onClick={(e) => e.stopPropagation()}>
             <div className="text-white text-sm font-medium mb-3">Font Settings</div>
             
             <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent pr-2">
@@ -1184,16 +1432,16 @@ export default function HomePage() {
       {/* Main Content */}
       {showTodo ? (
         /* Todo Panel - Replaces main content */
-        <div className="relative z-10 grid place-items-center min-h-screen px-4 text-center">
-          <div className="w-full max-w-4xl">
-            <div className="bg-black/30 border border-white/20 rounded-lg p-8 backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-white text-2xl font-semibold">My Tasks</h2>
+        <div className="relative z-30 min-h-screen px-4 text-center pb-32">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-xl mx-auto">
+            <div className="bg-black/30 border border-white/20 rounded-lg p-4" style={{backdropFilter: `blur(${blurIntensity}px)`}}>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-white text-xl font-semibold">My Tasks</h2>
                 <button
                   onClick={() => setShowTodo(false)}
                   className="text-white/60 hover:text-white transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -1275,10 +1523,10 @@ export default function HomePage() {
         </div>
       ) : showFocus ? (
         /* Focus Panel - Replaces main content */
-        <div className="relative z-10 grid place-items-center min-h-screen px-4 text-center">
-          <div className="w-full max-w-4xl">
-            <div className="bg-black/30 border border-white/20 rounded-lg p-8 backdrop-blur-sm">
-              <div className="flex items-center justify-center mb-8">
+        <div className="relative z-30 min-h-screen px-4 text-center pb-32">
+          <div className="fixed top-32 left-1/2 transform -translate-x-1/2 w-full max-w-6xl mx-auto max-h-[calc(100vh-20rem)] overflow-y-auto custom-scrollbar">
+            <div className="bg-black/30 border border-white/20 rounded-lg p-10" style={{backdropFilter: `blur(${blurIntensity}px)`}}>
+              <div className="flex items-center justify-center mb-6">
                 <h2 className="text-white text-2xl font-semibold">Deep Work Zone</h2>
               </div>
 
@@ -1286,7 +1534,98 @@ export default function HomePage() {
                 <div className="text-8xl font-bold text-white mb-4">
                   {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
                 </div>
-                <div className="text-white/60 text-xl capitalize">{focusMode === 'focus' ? 'Deep Work' : focusMode === 'shortBreak' ? 'Quick Rest' : 'Long Break'} Session</div>
+                <div className="text-white/60 text-xl capitalize mb-3">{focusMode === 'focus' ? 'Deep Work' : focusMode === 'shortBreak' ? 'Quick Rest' : 'Long Break'} Session</div>
+                
+                {/* Timer Duration Controls */}
+                <div className="flex items-center justify-center gap-6 mb-4">
+                  <button
+                    onClick={() => decreaseTimerDuration(focusMode)}
+                    disabled={timerDurations[focusMode] <= (focusMode === 'focus' ? 25 : 1) || isTimerRunning}
+                    className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                  >
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                    </svg>
+                  </button>
+                  
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={timerDurations[focusMode]}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value)
+                        if (!isNaN(value) && value >= 1 && value <= 60) {
+                          setTimerDurations(prev => ({
+                            ...prev,
+                            [focusMode]: value
+                          }))
+                          
+                          // If this is the current mode and timer is not running, update the display
+                          if (!isTimerRunning) {
+                            setTimeLeft(value * 60)
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const value = parseInt(e.target.value)
+                        const minValue = focusMode === 'focus' ? 25 : 1
+                        if (isNaN(value) || value < minValue) {
+                          setTimerDurations(prev => ({
+                            ...prev,
+                            [focusMode]: minValue
+                          }))
+                          if (!isTimerRunning) {
+                            setTimeLeft(minValue * 60)
+                          }
+                        } else if (value > 60) {
+                          setTimerDurations(prev => ({
+                            ...prev,
+                            [focusMode]: 60
+                          }))
+                          if (!isTimerRunning) {
+                            setTimeLeft(60 * 60)
+                          }
+                        }
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur()
+                        }
+                      }}
+                      disabled={isTimerRunning}
+                      className="w-20 px-3 py-2 text-center bg-white/10 border border-white/20 rounded text-white text-xl font-medium focus:outline-none focus:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-white/80 text-xl">min</span>
+                  </div>
+                  
+                  <button
+                    onClick={() => increaseTimerDuration(focusMode)}
+                    disabled={timerDurations[focusMode] >= 60 || isTimerRunning}
+                    className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                  >
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="text-white/50 text-sm">
+                  {isTimerRunning ? 'Timer running - adjust after reset' : 'Adjust timer duration (type or use +/- buttons)'}
+                </div>
+                
+                {/* Break Schedule Indicator */}
+                {scheduledBreaks.length > 0 && autoBreakSettings.enabled && !autoBreakSettings.skipBreaks && (
+                  <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                    <div className="text-orange-400 text-sm font-medium mb-2">📅 Break Schedule</div>
+                    <div className="text-white/80 text-sm">
+                      {scheduledBreaks.length === 1 && '1 break at 20 min'}
+                      {scheduledBreaks.length === 2 && '2 breaks at 20 min & 60 min'}
+                      {scheduledBreaks.length === 3 && '3 breaks at 20 min, 60 min & 100 min'}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 mb-8 justify-center">
@@ -1305,10 +1644,201 @@ export default function HomePage() {
                 ))}
               </div>
 
-              <div className="mb-8">
-                <div className="flex items-center gap-2 mb-4">
+              {/* Streak System */}
+              <div className="mb-6">
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white text-lg font-semibold flex items-center gap-2">
+                      <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                      Focus Streak
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/60 text-sm">Goal:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={streakData.dailyGoal}
+                        onChange={(e) => updateDailyGoal(parseInt(e.target.value) || 1)}
+                        className="w-12 px-2 py-1 text-center bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:border-white/40"
+                      />
+                      <span className="text-white/60 text-sm">hrs</span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-4 gap-3">
+                    {/* Current Streak */}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-yellow-400">{streakData.currentStreak}</div>
+                      <div className="text-white/60 text-sm">Day Streak</div>
+                    </div>
+                    
+                    {/* Today's Progress */}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-400">
+                        {(streakData.todayFocusedMinutes / 60).toFixed(1)}
+                      </div>
+                      <div className="text-white/60 text-sm">Hours Today</div>
+                    </div>
+                    
+                    {/* Total Hours */}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-400">
+                        {streakData.totalFocusedHours.toFixed(1)}
+                      </div>
+                      <div className="text-white/60 text-sm">Total Hours</div>
+                    </div>
+                    
+                    {/* Goal Progress */}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-400">
+                        {Math.round((streakData.todayFocusedMinutes / 60 / streakData.dailyGoal) * 100)}%
+                      </div>
+                      <div className="text-white/60 text-sm">Goal Progress</div>
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="mt-3">
+                    <div className="w-full bg-white/10 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-blue-400 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min((streakData.todayFocusedMinutes / 60 / streakData.dailyGoal) * 100, 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-white/60 mt-1">
+                      <span>0h</span>
+                      <span>{streakData.dailyGoal}h goal</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Auto Break Settings */}
+              <div className="mb-6">
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white text-lg font-semibold flex items-center gap-2">
+                      <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      Auto Break Settings
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/60 text-sm">Enabled</span>
+                      <button
+                        onClick={() => setAutoBreakSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
+                        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
+                          autoBreakSettings.enabled ? 'bg-orange-500' : 'bg-white/20'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
+                            autoBreakSettings.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {autoBreakSettings.enabled && (
+                    <>
+                      <div className="mb-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-white/80 text-sm font-medium">Break Duration</span>
+                          <span className="text-white/60 text-sm">{autoBreakSettings.breakDuration} min</span>
+                        </div>
+                        <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg">
+                          <input
+                            type="range"
+                            min="5"
+                            max="30"
+                            value={autoBreakSettings.breakDuration}
+                            onChange={(e) => setAutoBreakSettings(prev => ({ ...prev, breakDuration: Number(e.target.value) }))}
+                            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                            style={{
+                              background: `linear-gradient(to right, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.3) ${((autoBreakSettings.breakDuration - 5) / 25) * 100}%, rgba(255,255,255,0.1) ${((autoBreakSettings.breakDuration - 5) / 25) * 100}%, rgba(255,255,255,0.1) 100%)`
+                            }}
+                          />
+                          <div className="flex justify-between text-xs text-white/50 mt-2">
+                            <span>5 min</span>
+                            <span>30 min</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-6">
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/80 text-sm font-medium">Skip All Breaks</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setAutoBreakSettings(prev => ({ ...prev, skipBreaks: !prev.skipBreaks }))}
+                              disabled={isTimerRunning}
+                              className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
+                                autoBreakSettings.skipBreaks ? 'bg-orange-500' : 'bg-white/20'
+                              } ${isTimerRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
+                                  autoBreakSettings.skipBreaks ? 'translate-x-5' : 'translate-x-0.5'
+                                }`}
+                              />
+                            </button>
+                            {isTimerRunning && (
+                              <span className="text-white/40 text-xs">Session running</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Break Schedule Preview */}
+                      {scheduledBreaks.length > 0 && (
+                        <div className="mt-6">
+                          <div className="text-white/80 text-sm font-medium mb-3">Scheduled Breaks:</div>
+                          <div className="space-y-2">
+                            {scheduledBreaks.map((breakItem, index) => (
+                              <div key={breakItem.id} className="flex items-center justify-between p-2 bg-white/5 rounded">
+                                <span className="text-white/80 text-sm">
+                                  Break {index + 1}: {breakItem.time} min
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {breakItem.completed && <span className="text-green-400 text-xs">✓ Completed</span>}
+                                  {breakItem.skipped && <span className="text-orange-400 text-xs">⏭ Skipped</span>}
+                                  {!breakItem.completed && !breakItem.skipped && !isTimerRunning && (
+                                    <button
+                                      onClick={() => skipBreak(breakItem.id)}
+                                      className="text-orange-400 text-xs hover:text-orange-300"
+                                    >
+                                      Skip
+                                    </button>
+                                  )}
+                                  {!breakItem.completed && !breakItem.skipped && isTimerRunning && (
+                                    <span className="text-white/40 text-xs">Session running</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {isTimerRunning && (
+                            <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded text-orange-400 text-xs">
+                              ⚠️ Cannot skip breaks during active session
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
                   <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  <span className="text-white/80 text-lg">Current Mission:</span>
+                  <span className="text-white/80 text-base">Current Mission:</span>
                 </div>
                 <div className="flex gap-3">
                   <input
@@ -1331,7 +1861,7 @@ export default function HomePage() {
                         setNewFocusTask('')
                       }
                     }}
-                    className="px-8 py-4 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors text-lg font-medium"
+                    className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors text-base font-medium"
                   >
                     Add Mission
                   </button>
@@ -1339,13 +1869,13 @@ export default function HomePage() {
               </div>
 
               {tasks.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-white/80 text-lg mb-4">Active Missions:</h3>
-                  <div className="space-y-3 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-                    {tasks.slice(0, 5).map((task) => (
+                <div className="mb-6">
+                  <h3 className="text-white/80 text-base mb-3">Active Missions:</h3>
+                  <div className="space-y-2 max-h-24 overflow-y-auto custom-scrollbar">
+                    {tasks.map((task) => (
                       <div
                         key={task.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg text-lg ${
+                        className={`flex items-center gap-2 p-2 rounded-lg text-sm ${
                           task.completed
                             ? 'bg-white/5 text-white/40'
                             : 'bg-white/10 text-white'
@@ -1353,7 +1883,7 @@ export default function HomePage() {
                       >
                         <button
                           onClick={() => toggleTask(task.id)}
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                             task.completed
                               ? 'bg-green-500 border-green-500'
                               : 'border-white/40 hover:border-white/60'
@@ -1365,7 +1895,7 @@ export default function HomePage() {
                             </svg>
                           )}
                         </button>
-                        <span className={`flex-1 ${task.completed ? 'line-through' : ''}`}>
+                        <span className={`flex-1 text-xs ${task.completed ? 'line-through' : ''}`}>
                           {task.text}
                         </span>
                       </div>
@@ -1377,9 +1907,9 @@ export default function HomePage() {
               <div className="flex gap-4 justify-center">
                 <button
                   onClick={resetTimer}
-                  className="px-8 py-4 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center gap-3 text-lg font-medium"
+                  className="px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center gap-2 text-base font-medium"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   Reset Timer
@@ -1387,9 +1917,9 @@ export default function HomePage() {
                 {isTimerRunning ? (
                   <button
                     onClick={pauseTimer}
-                    className="px-8 py-4 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-3 text-lg font-medium"
+                    className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-2 text-base font-medium"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Pause
@@ -1397,9 +1927,9 @@ export default function HomePage() {
                 ) : (
                   <button
                     onClick={startTimer}
-                    className="px-8 py-4 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-3 text-lg font-medium"
+                    className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-2 text-base font-medium"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Start Timer
@@ -1411,17 +1941,32 @@ export default function HomePage() {
         </div>
       ) : (
         /* Default Clock/Timer View */
-      <div className="relative z-10 grid place-items-center min-h-screen px-4 text-center">
-        <div className="space-y-6">
+      <div className="relative z-20 min-h-screen px-4 text-center pb-32">
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 space-y-6">
           <div>
             {mounted && timeString && (() => { 
               const m = timeString.match(/(.*?)(?:\s*)(AM|PM|am|pm)$/); 
               const main = m? m[1] : timeString; 
               const suffix = m? m[2].toLowerCase() : ''; 
+                
+                // Split time into parts for individual animation
+                const timeParts = main.split(':');
+                const hours = timeParts[0] || '00';
+                const minutes = timeParts[1] || '00';
+                const seconds = timeParts[2] || '00';
+                
               return (
-                <div className="tabular-nums text-6xl md:text-8xl lg:text-9xl drop-shadow-sm text-white/90">
-                  {main}
-                  {suffix && <span className="ml-3 text-2xl align-baseline text-white/90">{suffix}</span>}
+                  <div className="tabular-nums text-6xl md:text-8xl lg:text-9xl drop-shadow-sm text-white/90 flex items-baseline justify-center">
+                    <span key={hours} className="transition-all duration-500 ease-in-out transform">{hours}</span>
+                    <span className="mx-1">:</span>
+                    <span key={minutes} className="transition-all duration-500 ease-in-out transform">{minutes}</span>
+                    {seconds && (
+                      <>
+                        <span className="mx-1">:</span>
+                        <span key={seconds} className="transition-all duration-500 ease-in-out transform">{seconds}</span>
+                      </>
+                    )}
+                    {suffix && <span key={suffix} className="ml-3 text-2xl align-baseline text-white/90 transition-all duration-500 ease-in-out transform">{suffix}</span>}
                 </div>
               )
             })()}
@@ -1439,7 +1984,7 @@ export default function HomePage() {
 
       {/* Bottom Menu */}
       {showBottomMenu && (
-        <footer className="fixed inset-x-0 bottom-6 grid place-items-center z-50 pointer-events-none">
+        <footer className="fixed inset-x-0 bottom-6 grid place-items-center z-[90] pointer-events-none">
         <div className="pointer-events-auto">
             <CenterMenu 
               onMusic={() => setShowMusic(true)} 
@@ -1462,6 +2007,7 @@ export default function HomePage() {
               wallpapers={getLiveWallpapers().map(w => w.url).concat(getPhotoWallpapers().map(w => w.url))}
               buttonSize={buttonSize}
               onClick={playClickSoundIfEnabled}
+              blurIntensity={blurIntensity}
             />
         </div>
       </footer>
@@ -1493,6 +2039,7 @@ export default function HomePage() {
         isVisible={isMusicPlaying && showBackgroundPlayer && !isMusicMinimized}
         isPlaying={isMusicPlaying}
         onMinimize={() => setIsMusicMinimized(true)}
+        blurIntensity={blurIntensity}
       />
 
             {/* Music Player Button - Only visible when music player is enabled in settings */}
@@ -1548,7 +2095,7 @@ export default function HomePage() {
 
 
       {/* Footer Info */}
-      <div className="fixed bottom-2 inset-x-0 flex items-center justify-center text-xs text-white/70 z-10">
+      <div className="fixed bottom-2 inset-x-0 flex items-center justify-center text-xs text-white/70 z-[80]">
         <div className="text-center">
           <span className="block">Moodelix - vibe, study, focus and get stuff done</span>
         </div>
