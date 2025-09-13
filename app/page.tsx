@@ -5,6 +5,7 @@ import EnhancedMusicPlayer from '@/components/EnhancedMusicPlayer'
 import BackgroundMusicPlayer from '@/components/BackgroundMusicPlayer'
 import CenterMenu from '@/components/CenterMenu'
 import BugReportPopup from '@/components/BugReportPopup'
+import UserButton from '@/components/UserButton'
 import { useSoundEffects } from '@/lib/useSoundEffects'
 import { useSupabaseAuth } from '@/lib/SupabaseAuthContext'
 import Tooltip from '@/components/Tooltip'
@@ -1069,6 +1070,12 @@ export default function HomePage() {
         )}
         
         <div className="flex items-center gap-3">
+          {/* User Button - First in the row */}
+          <UserButton 
+            onClick={playClickSoundIfEnabled}
+            blurIntensity={blurIntensity}
+          />
+          
           <Tooltip content={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}>
             <button
               onClick={() => {
@@ -2203,6 +2210,7 @@ export default function HomePage() {
           </button>
         </div>
       )}
+
 
 
 

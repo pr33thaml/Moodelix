@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSupabaseAuth } from '@/lib/SupabaseAuthContext'
 
 interface UserPanelProps {
@@ -13,17 +13,22 @@ interface UserPanelProps {
 export default function UserPanel({ isOpen, onClose, onClick, blurIntensity = 10 }: UserPanelProps) {
   const { user, session, loading, signIn, signOut } = useSupabaseAuth()
 
+  console.log('👤 UserPanel render - isOpen:', isOpen, 'user:', !!user, 'loading:', loading)
+
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-[99] bg-black/20" onClick={() => {
+      console.log('👤 Backdrop clicked, closing panel')
       onClick?.()
       onClose()
     }}>
       <div 
-        className="fixed top-24 right-8 bg-black/30 border border-white/20 rounded-lg p-4 min-w-[280px] z-[100]" 
-        style={{backdropFilter: `blur(${blurIntensity}px)`}} 
-        onClick={(e) => e.stopPropagation()}
+        className="fixed top-32 right-8 bg-black/90 border-4 border-red-500 rounded-xl p-6 min-w-[320px] max-w-[400px] z-[100] shadow-2xl backdrop-blur-md" 
+        onClick={(e) => {
+          console.log('👤 Panel content clicked, preventing close')
+          e.stopPropagation()
+        }}
       >
         <div className="text-white text-sm font-medium mb-4">User Account</div>
         

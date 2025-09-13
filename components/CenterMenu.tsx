@@ -1,7 +1,5 @@
-import React, { useState } from 'react'
+import React from 'react'
 import WallpaperButton from '@/components/WallpaperButton'
-import { useSupabaseAuth } from '@/lib/SupabaseAuthContext'
-import UserPanel from './UserPanel'
 
 interface CenterMenuProps {
   onMusic: () => void
@@ -16,8 +14,6 @@ interface CenterMenuProps {
 }
 
 export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus, onHome, wallpapers, buttonSize = 'medium', onClick, blurIntensity = 10 }: CenterMenuProps) {
-  const { user, signIn, signOut } = useSupabaseAuth()
-  const [showUserPanel, setShowUserPanel] = useState(false)
   
   const getButtonSizeClasses = () => {
     switch (buttonSize) {
@@ -138,58 +134,6 @@ export default function CenterMenu({ onMusic, onWallpaperChange, onTodo, onFocus
         blurIntensity={blurIntensity}
       />
 
-      {/* User Profile Button - Show for both authenticated and non-authenticated users */}
-      <div className="relative">
-        <button 
-          onClick={() => {
-            onClick?.()
-            setShowUserPanel(true)
-          }}
-          className={`link ${getButtonSizeClasses()}`}
-          title={user ? "User Profile" : "User Account"}
-        >
-          <span className="link-icon">
-            {user ? (
-              // Show user's profile picture or initials
-              user.image_url ? (
-                <img
-                  src={user.image_url}
-                  alt={user.name}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-white/20 flex items-center justify-center">
-                  <span className="text-white font-medium text-sm">
-                    {user.name?.charAt(0).toUpperCase() || 'U'}
-                  </span>
-                </div>
-              )
-            ) : (
-              // User profile icon for non-authenticated users
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="192"
-                height="192"
-                fill="currentColor"
-                viewBox="0 0 256 256"
-              >
-                <rect width="256" height="256" fill="none"></rect>
-                <circle cx="128" cy="96" r="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></circle>
-                <path d="M31,216a112,112,0,0,1,194,0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></path>
-              </svg>
-            )}
-          </span>
-          <span className="link-title">{user ? (user.name || 'User') : 'User'}</span>
-        </button>
-      </div>
-
-      {/* User Panel */}
-      <UserPanel
-        isOpen={showUserPanel}
-        onClose={() => setShowUserPanel(false)}
-        onClick={onClick}
-        blurIntensity={blurIntensity}
-      />
     </div>
   )
 }
