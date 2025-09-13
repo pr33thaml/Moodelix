@@ -705,6 +705,7 @@ export default function HomePage() {
       
       // Load user streak data
       if (user.streakData) {
+        console.log('🔄 Loading streak data from user:', user.streakData)
         setStreakData({
           currentStreak: user.streakData.current_streak,
           totalFocusedHours: user.streakData.total_focused_hours,
@@ -712,6 +713,14 @@ export default function HomePage() {
           todayFocusedMinutes: user.streakData.today_focused_minutes,
           lastFocusDate: user.streakData.last_focus_date
         })
+        console.log('✅ Streak data loaded:', {
+          currentStreak: user.streakData.current_streak,
+          totalFocusedHours: user.streakData.total_focused_hours,
+          dailyGoal: user.streakData.daily_goal,
+          todayFocusedMinutes: user.streakData.today_focused_minutes
+        })
+      } else {
+        console.log('❌ No streak data found in user profile')
       }
     }
   }, [user])

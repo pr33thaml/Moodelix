@@ -47,20 +47,27 @@ export default function TodoList() {
 
   async function addTodo(e: React.FormEvent) {
     e.preventDefault()
-    if (!title.trim() || !session) return
+    if (!title.trim() || !session) {
+      console.log('❌ Cannot add todo - no title or session:', { title: title.trim(), hasSession: !!session })
+      return
+    }
     setLoading(true)
     try {
+      console.log('🔄 Adding todo:', title)
       const res = await fetch('/api/todos', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify({ title }) 
       })
+      console.log('📡 Todo API response:', res.status, res.statusText)
       if (res.ok) {
+        const data = await res.json()
+        console.log('✅ Todo added successfully:', data)
         setTitle('')
         await fetchTodos()
-        console.log('✅ Todo added successfully')
       } else {
-        console.error('❌ Error adding todo:', res.status, res.statusText)
+        const errorData = await res.json()
+        console.error('❌ Error adding todo:', res.status, res.statusText, errorData)
       }
     } catch (error) {
       console.error('❌ Error adding todo:', error)
