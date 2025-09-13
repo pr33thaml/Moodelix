@@ -110,7 +110,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
                 .eq('id', userId)
                 .single()
               profileResult.data = retryResult.data
-              profileResult.error = retryResult.error
+              profileResult.error = retryResult.error as any
             }
           } catch (createErr) {
             console.error('❌ Error in profile creation:', createErr)
@@ -159,7 +159,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
                 .eq('id', userId)
                 .single()
               streakResult.data = retryResult.data
-              streakResult.error = retryResult.error
+              streakResult.error = retryResult.error as any
             }
           } catch (createErr) {
             console.error('❌ Error in streak data creation:', createErr)
@@ -208,7 +208,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
                 .eq('id', userId)
                 .single()
               preferencesResult.data = retryResult.data
-              preferencesResult.error = retryResult.error
+              preferencesResult.error = retryResult.error as any
             }
           } catch (createErr) {
             console.error('❌ Error in user preferences creation:', createErr)
