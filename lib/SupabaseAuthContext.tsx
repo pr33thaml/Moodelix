@@ -177,11 +177,11 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔧 SupabaseAuthProvider initializing...')
     
-    // Immediate fallback - show guest interface if no session after 1 second
+    // Very aggressive fallback - show guest interface immediately if no session
     const immediateTimeout = setTimeout(() => {
       console.log('⏰ Immediate timeout - showing guest interface')
       setLoading(false)
-    }, 1000) // 1 second timeout
+    }, 500) // 500ms timeout - very fast
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -196,7 +196,15 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       setSession(session)
       if (session?.user?.id) {
         console.log('🔧 User found, fetching profile...')
-        fetchUserProfile(session.user.id)
+        // Add timeout for profile fetching too
+        const profileTimeout = setTimeout(() => {
+          console.log('⏰ Profile fetch timeout - showing guest interface')
+          setLoading(false)
+        }, 2000)
+        
+        fetchUserProfile(session.user.id).finally(() => {
+          clearTimeout(profileTimeout)
+        })
       } else {
         console.log('🔧 No user found, setting loading to false')
         setLoading(false)
@@ -220,7 +228,17 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         setSession(session)
         if (session?.user?.id) {
           console.log('🔄 User authenticated, fetching profile...')
-          await fetchUserProfile(session.user.id)
+          // Add timeout for profile fetching
+          const profileTimeout = setTimeout(() => {
+            console.log('⏰ Profile fetch timeout - showing guest interface')
+            setLoading(false)
+          }, 2000)
+          
+          try {
+            await fetchUserProfile(session.user.id)
+          } finally {
+            clearTimeout(profileTimeout)
+          }
         } else {
           console.log('🔄 No user, clearing user data')
           setUser(null)
