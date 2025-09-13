@@ -5,6 +5,12 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  
+  console.log('🔧 Auth callback received:', {
+    url: requestUrl.href,
+    hasCode: !!code,
+    code: code ? code.substring(0, 20) + '...' : null
+  })
 
   if (code) {
     const cookieStore = cookies()

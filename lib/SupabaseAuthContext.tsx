@@ -371,11 +371,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       })
       console.log('🔐 Sign-in response:', { data, error })
@@ -392,6 +388,12 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     console.log('🔧 SupabaseAuthProvider initializing...')
+    
+    // Handle hash-based OAuth callback (fallback)
+    if (typeof window !== 'undefined' && window.location.hash) {
+      console.log('🔧 Hash-based OAuth callback detected, processing...')
+      // Let Supabase handle the hash automatically
+    }
     
     // Give more time for session to load
     const immediateTimeout = setTimeout(() => {
