@@ -28,9 +28,19 @@ export async function GET() {
         }
       }
     )
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    // Try to get user from session first
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    console.log('🔍 Session check result:', { session: !!session, userId: session?.user?.id, error: sessionError })
     
-    console.log('🔍 User check result:', { user: !!user, userId: user?.id, error: userError })
+    let user = session?.user
+    if (!user) {
+      // Fallback to getUser if session doesn't work
+      const { data: { user: userData }, error: userError } = await supabase.auth.getUser()
+      console.log('🔍 User check result:', { user: !!userData, userId: userData?.id, error: userError })
+      if (userData) {
+        user = userData
+      }
+    }
     
     if (!user) {
       console.log('❌ No user found, returning 401')
@@ -96,9 +106,19 @@ export async function POST(req: Request) {
         }
       }
     )
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    // Try to get user from session first
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    console.log('🔍 Session check result:', { session: !!session, userId: session?.user?.id, error: sessionError })
     
-    console.log('🔍 User check result:', { user: !!user, userId: user?.id, error: userError })
+    let user = session?.user
+    if (!user) {
+      // Fallback to getUser if session doesn't work
+      const { data: { user: userData }, error: userError } = await supabase.auth.getUser()
+      console.log('🔍 User check result:', { user: !!userData, userId: userData?.id, error: userError })
+      if (userData) {
+        user = userData
+      }
+    }
     
     if (!user) {
       console.log('❌ No user found, returning 401')
