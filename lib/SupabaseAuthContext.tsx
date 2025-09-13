@@ -168,16 +168,16 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔧 SupabaseAuthProvider initializing...')
     
-    // Set a shorter timeout for Vercel - show guest interface quickly
-    const loadingTimeout = setTimeout(() => {
-      console.log('⏰ Loading timeout reached, showing guest interface')
+    // Immediate fallback - show guest interface if no session after 1 second
+    const immediateTimeout = setTimeout(() => {
+      console.log('⏰ Immediate timeout - showing guest interface')
       setLoading(false)
-    }, 3000) // 3 second timeout for faster UX
+    }, 1000) // 1 second timeout
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       console.log('🔧 Initial session check:', { session: !!session, error })
-      clearTimeout(loadingTimeout)
+      clearTimeout(immediateTimeout)
       setSession(session)
       if (session?.user?.id) {
         console.log('🔧 User found, fetching profile...')
@@ -188,7 +188,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       }
     }).catch((error) => {
       console.error('🔧 Error getting session:', error)
-      clearTimeout(loadingTimeout)
+      clearTimeout(immediateTimeout)
       setLoading(false)
     })
 
@@ -196,7 +196,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event, session?.user?.email)
-        clearTimeout(loadingTimeout)
+        clearTimeout(immediateTimeout)
         setSession(session)
         if (session?.user?.id) {
           console.log('🔄 User authenticated, fetching profile...')
@@ -210,7 +210,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     )
 
     return () => {
-      clearTimeout(loadingTimeout)
+      clearTimeout(immediateTimeout)
       subscription.unsubscribe()
     }
   }, [])
