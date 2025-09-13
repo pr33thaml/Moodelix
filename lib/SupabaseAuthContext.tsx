@@ -77,23 +77,147 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
       if (profileResult.error) {
         console.error('❌ Error fetching profile:', profileResult.error)
-        setLoading(false)
-        setFetchingProfile(false)
-        return
+        console.error('❌ Profile error details:', {
+          message: profileResult.error.message,
+          details: profileResult.error.details,
+          hint: profileResult.error.hint,
+          code: profileResult.error.code
+        })
+        
+        // If profile doesn't exist, try to create it
+        if (profileResult.error.code === 'PGRST116') {
+          console.log('🔄 Profile not found, creating new profile...')
+          try {
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: userId,
+                email: session?.user?.email || '',
+                name: session?.user?.user_metadata?.full_name || '',
+                image_url: session?.user?.user_metadata?.avatar_url || ''
+              })
+              .select()
+              .single()
+            
+            if (createError) {
+              console.error('❌ Error creating profile:', createError)
+            } else {
+              console.log('✅ Profile created successfully:', newProfile)
+              // Retry fetching profile
+              const retryResult = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single()
+              profileResult.data = retryResult.data
+              profileResult.error = retryResult.error
+            }
+          } catch (createErr) {
+            console.error('❌ Error in profile creation:', createErr)
+          }
+        } else {
+          setLoading(false)
+          setFetchingProfile(false)
+          return
+        }
       }
 
       if (streakResult.error) {
         console.error('❌ Error fetching streak data:', streakResult.error)
-        setLoading(false)
-        setFetchingProfile(false)
-        return
+        console.error('❌ Streak error details:', {
+          message: streakResult.error.message,
+          details: streakResult.error.details,
+          hint: streakResult.error.hint,
+          code: streakResult.error.code
+        })
+        
+        // If streak_data doesn't exist, try to create it
+        if (streakResult.error.code === 'PGRST116') {
+          console.log('🔄 Streak data not found, creating new streak data...')
+          try {
+            const { data: newStreakData, error: createError } = await supabase
+              .from('streak_data')
+              .insert({
+                id: userId,
+                current_streak: 0,
+                total_focused_hours: 0,
+                daily_goal: 4,
+                today_focused_minutes: 0,
+                last_focus_date: null
+              })
+              .select()
+              .single()
+            
+            if (createError) {
+              console.error('❌ Error creating streak data:', createError)
+            } else {
+              console.log('✅ Streak data created successfully:', newStreakData)
+              // Retry fetching streak data
+              const retryResult = await supabase
+                .from('streak_data')
+                .select('*')
+                .eq('id', userId)
+                .single()
+              streakResult.data = retryResult.data
+              streakResult.error = retryResult.error
+            }
+          } catch (createErr) {
+            console.error('❌ Error in streak data creation:', createErr)
+          }
+        } else {
+          setLoading(false)
+          setFetchingProfile(false)
+          return
+        }
       }
 
       if (preferencesResult.error) {
         console.error('❌ Error fetching preferences:', preferencesResult.error)
-        setLoading(false)
-        setFetchingProfile(false)
-        return
+        console.error('❌ Preferences error details:', {
+          message: preferencesResult.error.message,
+          details: preferencesResult.error.details,
+          hint: preferencesResult.error.hint,
+          code: preferencesResult.error.code
+        })
+        
+        // If user_preferences doesn't exist, try to create it
+        if (preferencesResult.error.code === 'PGRST116') {
+          console.log('🔄 User preferences not found, creating new preferences...')
+          try {
+            const { data: newPreferences, error: createError } = await supabase
+              .from('user_preferences')
+              .insert({
+                id: userId,
+                timer_durations: { focus: 25, shortBreak: 5, longBreak: 15 },
+                auto_break_settings: { enabled: true, breakDuration: 10, skipBreaks: false },
+                blur_intensity: 10,
+                wallpaper_brightness: 'normal',
+                sound_effects_enabled: false
+              })
+              .select()
+              .single()
+            
+            if (createError) {
+              console.error('❌ Error creating user preferences:', createError)
+            } else {
+              console.log('✅ User preferences created successfully:', newPreferences)
+              // Retry fetching preferences
+              const retryResult = await supabase
+                .from('user_preferences')
+                .select('*')
+                .eq('id', userId)
+                .single()
+              preferencesResult.data = retryResult.data
+              preferencesResult.error = retryResult.error
+            }
+          } catch (createErr) {
+            console.error('❌ Error in user preferences creation:', createErr)
+          }
+        } else {
+          setLoading(false)
+          setFetchingProfile(false)
+          return
+        }
       }
 
       const profile = profileResult.data
