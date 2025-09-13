@@ -811,6 +811,19 @@ export default function HomePage() {
     }
   }, [])
 
+  // Debug auth state
+  useEffect(() => {
+    console.log('🔍 Auth Debug:', {
+      user: !!user,
+      session: !!session,
+      loading,
+      userEmail: user?.email,
+      sessionEmail: session?.user?.email,
+      userId: user?.id,
+      sessionUserId: session?.user?.id
+    })
+  }, [user, session, loading])
+
   useEffect(() => {
     if (!mounted) return
     const clock = setInterval(() => setTimeString(new Date().toLocaleTimeString()), 1000)

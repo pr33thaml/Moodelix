@@ -389,50 +389,35 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔧 SupabaseAuthProvider initializing...')
     
-    // Handle hash-based OAuth callback (fallback)
-    if (typeof window !== 'undefined' && window.location.hash) {
-      console.log('🔧 Hash-based OAuth callback detected, processing...')
-      // Let Supabase handle the hash automatically
-    }
-    
-    // Give more time for session to load
-    const immediateTimeout = setTimeout(() => {
-      console.log('⏰ Immediate timeout - showing guest interface')
-      setLoading(false)
-    }, 3000) // 3 second timeout - more reasonable
-    
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log('🔧 Initial session check:', { 
-        session: !!session, 
-        userId: session?.user?.id,
-        email: session?.user?.email,
-        expiresAt: session?.expires_at,
-        error,
-        currentUrl: typeof window !== 'undefined' ? window.location.href : 'server'
-      })
-      clearTimeout(immediateTimeout)
-      setSession(session)
-      if (session?.user?.id) {
-        console.log('🔧 User found, fetching profile...')
-        // Add timeout for profile fetching too
-        const profileTimeout = setTimeout(() => {
-          console.log('⏰ Profile fetch timeout - showing guest interface')
-          setLoading(false)
-        }, 10000) // 10 second timeout for profile fetch
-        
-        fetchUserProfile(session.user.id, session).finally(() => {
-          clearTimeout(profileTimeout)
+    // Get initial session immediately
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        console.log('🔧 Initial session check:', { 
+          session: !!session, 
+          userId: session?.user?.id,
+          email: session?.user?.email,
+          expiresAt: session?.expires_at,
+          error,
+          currentUrl: typeof window !== 'undefined' ? window.location.href : 'server'
         })
-      } else {
-        console.log('🔧 No user found, setting loading to false')
+        
+        setSession(session)
+        
+        if (session?.user?.id) {
+          console.log('🔧 User found, fetching profile...')
+          await fetchUserProfile(session.user.id, session)
+        } else {
+          console.log('🔧 No user found')
+        }
+      } catch (error) {
+        console.error('🔧 Error getting session:', error)
+      } finally {
         setLoading(false)
       }
-    }).catch((error) => {
-      console.error('🔧 Error getting session:', error)
-      clearTimeout(immediateTimeout)
-      setLoading(false)
-    })
+    }
+    
+    getInitialSession()
 
     // Also listen for auth changes immediately
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -443,7 +428,6 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
           userId: session?.user?.id,
           hasSession: !!session
         })
-        clearTimeout(immediateTimeout)
         setSession(session)
         if (session?.user?.id) {
           console.log('🔄 User authenticated, fetching profile...')
@@ -474,7 +458,6 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
 
     return () => {
-      clearTimeout(immediateTimeout)
       subscription.unsubscribe()
     }
   }, [])
