@@ -26,13 +26,18 @@ export default function TodoList() {
     }
 
     try {
+      console.log('🔄 Fetching todos for user:', session.user.id)
       const res = await fetch('/api/todos')
+      console.log('📡 Fetch response:', res.status, res.statusText)
+      
       if (res.ok) {
         const data = await res.json()
+        console.log('📦 Raw API response:', data)
         setTodos(Array.isArray(data) ? data : [])
         console.log('✅ Todos fetched:', data)
       } else {
-        console.error('❌ Error fetching todos:', res.status, res.statusText)
+        const errorData = await res.json()
+        console.error('❌ Error fetching todos:', res.status, res.statusText, errorData)
         setTodos([])
       }
     } catch (error) {
