@@ -1,18 +1,42 @@
 import { NextResponse } from 'next/server'
-import { connectToDatabase } from '@/lib/mongodb'
-import { Todo } from '@/models/Todo'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 type Params = { params: { id: string } }
 
 export async function PATCH(req: Request, { params }: Params) {
   try {
     const body = await req.json()
-    await connectToDatabase()
-    const todo = await Todo.findByIdAndUpdate(
-      params.id,
-      { $set: body },
-      { new: true }
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+        },
+      }
     )
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: todo, error } = await supabase
+      .from('todos')
+      .update(body)
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+
     return NextResponse.json(todo)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'DB error' }, { status: 500 })
@@ -21,8 +45,34 @@ export async function PATCH(req: Request, { params }: Params) {
 
 export async function DELETE(_req: Request, { params }: Params) {
   try {
-    await connectToDatabase()
-    await Todo.findByIdAndDelete(params.id)
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+        },
+      }
+    )
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      throw error
+    }
+
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'DB error' }, { status: 500 })
