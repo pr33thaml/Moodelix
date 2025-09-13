@@ -54,29 +54,40 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       console.log('🔍 Fetching user profile for ID:', userId)
       setLoading(true)
       
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          streak_data (*),
-          user_preferences (*)
-        `)
-        .eq('id', userId)
-        .single()
+      // Fetch data separately to avoid JOIN issues
+      const [profileResult, streakResult, preferencesResult] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('streak_data').select('*').eq('id', userId).single(),
+        supabase.from('user_preferences').select('*').eq('id', userId).single()
+      ])
 
-      if (error) {
-        console.error('❌ Error fetching profile:', error)
-        console.error('❌ Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        })
+      console.log('🔍 Profile result:', profileResult)
+      console.log('🔍 Streak result:', streakResult)
+      console.log('🔍 Preferences result:', preferencesResult)
+
+      if (profileResult.error) {
+        console.error('❌ Error fetching profile:', profileResult.error)
         setLoading(false)
         return
       }
 
-      console.log('✅ Profile data:', profile)
+      if (streakResult.error) {
+        console.error('❌ Error fetching streak data:', streakResult.error)
+        setLoading(false)
+        return
+      }
+
+      if (preferencesResult.error) {
+        console.error('❌ Error fetching preferences:', preferencesResult.error)
+        setLoading(false)
+        return
+      }
+
+      const profile = profileResult.data
+      const streakData = streakResult.data
+      const preferences = preferencesResult.data
+
+      console.log('✅ All data fetched successfully')
 
       if (profile) {
         const userProfile: UserProfile = {
@@ -85,26 +96,26 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
           name: profile.name || '',
           image_url: profile.image_url,
           streakData: {
-            current_streak: profile.streak_data?.current_streak || 0,
-            total_focused_hours: profile.streak_data?.total_focused_hours || 0,
-            daily_goal: profile.streak_data?.daily_goal || 4,
-            today_focused_minutes: profile.streak_data?.today_focused_minutes || 0,
-            last_focus_date: profile.streak_data?.last_focus_date || null
+            current_streak: streakData?.current_streak || 0,
+            total_focused_hours: streakData?.total_focused_hours || 0,
+            daily_goal: streakData?.daily_goal || 4,
+            today_focused_minutes: streakData?.today_focused_minutes || 0,
+            last_focus_date: streakData?.last_focus_date || null
           },
           preferences: {
-            timer_durations: profile.user_preferences?.timer_durations || {
+            timer_durations: preferences?.timer_durations || {
               focus: 25,
               shortBreak: 5,
               longBreak: 15
             },
-            auto_break_settings: profile.user_preferences?.auto_break_settings || {
+            auto_break_settings: preferences?.auto_break_settings || {
               enabled: true,
               breakDuration: 10,
               skipBreaks: false
             },
-            blur_intensity: profile.user_preferences?.blur_intensity || 10,
-            wallpaper_brightness: profile.user_preferences?.wallpaper_brightness || 'normal',
-            sound_effects_enabled: profile.user_preferences?.sound_effects_enabled || false
+            blur_intensity: preferences?.blur_intensity || 10,
+            wallpaper_brightness: preferences?.wallpaper_brightness || 'normal',
+            sound_effects_enabled: preferences?.sound_effects_enabled || false
           }
         }
         console.log('✅ Setting user profile:', userProfile)
