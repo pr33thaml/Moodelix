@@ -276,7 +276,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    // Listen for auth changes
+    // Also listen for auth changes immediately
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', { 
@@ -313,6 +313,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         setLoading(false)
       }
     )
+
 
     return () => {
       clearTimeout(immediateTimeout)

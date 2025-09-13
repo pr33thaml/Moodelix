@@ -25,7 +25,18 @@ export async function GET(request: NextRequest) {
         },
       }
     )
-    await supabase.auth.exchangeCodeForSession(code)
+    
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+      if (error) {
+        console.error('❌ Error exchanging code for session:', error)
+        return NextResponse.redirect(`${requestUrl.origin}?error=auth_failed`)
+      }
+      console.log('✅ Session exchanged successfully:', data.session?.user?.email)
+    } catch (error) {
+      console.error('❌ Error in auth callback:', error)
+      return NextResponse.redirect(`${requestUrl.origin}?error=auth_failed`)
+    }
   }
 
   // URL to redirect to after sign in process completes
