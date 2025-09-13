@@ -1,57 +1,126 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSupabaseAuth } from '@/lib/SupabaseAuthContext'
 
 type Todo = {
-  _id: string
+  id: string
   title: string
   completed: boolean
-  dueAt?: string
+  due_at?: string
+  created_at?: string
+  updated_at?: string
 }
 
 export default function TodoList() {
+  const { user, session } = useSupabaseAuth()
   const [todos, setTodos] = useState<Todo[]>([])
   const [title, setTitle] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function fetchTodos() {
-    const res = await fetch('/api/todos')
-    const data = await res.json()
-    setTodos(Array.isArray(data) ? data : [])
+    if (!session) {
+      console.log('No session, clearing todos')
+      setTodos([])
+      return
+    }
+
+    try {
+      const res = await fetch('/api/todos')
+      if (res.ok) {
+        const data = await res.json()
+        setTodos(Array.isArray(data) ? data : [])
+        console.log('✅ Todos fetched:', data)
+      } else {
+        console.error('❌ Error fetching todos:', res.status, res.statusText)
+        setTodos([])
+      }
+    } catch (error) {
+      console.error('❌ Error fetching todos:', error)
+      setTodos([])
+    }
   }
 
-  useEffect(() => { fetchTodos() }, [])
+  useEffect(() => { 
+    fetchTodos() 
+  }, [session])
 
   async function addTodo(e: React.FormEvent) {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!title.trim() || !session) return
     setLoading(true)
     try {
-      await fetch('/api/todos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) })
-      setTitle('')
-      await fetchTodos()
+      const res = await fetch('/api/todos', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ title }) 
+      })
+      if (res.ok) {
+        setTitle('')
+        await fetchTodos()
+        console.log('✅ Todo added successfully')
+      } else {
+        console.error('❌ Error adding todo:', res.status, res.statusText)
+      }
+    } catch (error) {
+      console.error('❌ Error adding todo:', error)
     } finally {
       setLoading(false)
     }
   }
 
   async function toggleTodo(id: string, completed: boolean) {
-    await fetch(`/api/todos/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ completed: !completed }) })
-    await fetchTodos()
+    if (!session) return
+    try {
+      const res = await fetch(`/api/todos/${id}`, { 
+        method: 'PATCH', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ completed: !completed }) 
+      })
+      if (res.ok) {
+        await fetchTodos()
+        console.log('✅ Todo toggled successfully')
+      } else {
+        console.error('❌ Error toggling todo:', res.status, res.statusText)
+      }
+    } catch (error) {
+      console.error('❌ Error toggling todo:', error)
+    }
   }
 
   async function removeTodo(id: string) {
-    await fetch(`/api/todos/${id}`, { method: 'DELETE' })
-    await fetchTodos()
+    if (!session) return
+    try {
+      const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        await fetchTodos()
+        console.log('✅ Todo removed successfully')
+      } else {
+        console.error('❌ Error removing todo:', res.status, res.statusText)
+      }
+    } catch (error) {
+      console.error('❌ Error removing todo:', error)
+    }
   }
 
   async function clearAllTodos() {
-    if (todos.length === 0) return
+    if (todos.length === 0 || !session) return
     if (confirm('Are you sure you want to clear all tasks?')) {
       for (const todo of todos) {
-        await removeTodo(todo._id)
+        await removeTodo(todo.id)
       }
     }
+  }
+
+  if (!session) {
+    return (
+      <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6">
+        <h2 className="text-2xl font-bold text-black mb-6">Todo App</h2>
+        <div className="text-center text-gray-500">
+          <p>Please sign in to manage your tasks</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -86,7 +155,7 @@ export default function TodoList() {
       <div className="space-y-3 mb-6">
         {todos.map((todo) => (
           <div
-            key={todo._id}
+            key={todo.id}
             className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
               todo.completed 
                 ? 'bg-gray-50 border-gray-200' 
@@ -97,7 +166,7 @@ export default function TodoList() {
               <input
                 type="checkbox"
                 checked={todo.completed}
-                onChange={() => toggleTodo(todo._id, todo.completed)}
+                onChange={() => toggleTodo(todo.id, todo.completed)}
                 className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
               />
               <span className={`text-gray-800 ${
@@ -107,7 +176,7 @@ export default function TodoList() {
               </span>
             </div>
             <button
-              onClick={() => removeTodo(todo._id)}
+              onClick={() => removeTodo(todo.id)}
               className="ml-3 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
               title="Delete task"
             >
