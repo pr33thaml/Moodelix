@@ -64,6 +64,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       
       // Fetch data separately to avoid JOIN issues
+      console.log('🔄 Starting parallel data fetch...')
       const [profileResult, streakResult, preferencesResult] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).single(),
         supabase.from('streak_data').select('*').eq('id', userId).single(),
@@ -238,11 +239,11 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔧 SupabaseAuthProvider initializing...')
     
-    // Very aggressive fallback - show guest interface immediately if no session
+    // Give more time for session to load
     const immediateTimeout = setTimeout(() => {
       console.log('⏰ Immediate timeout - showing guest interface')
       setLoading(false)
-    }, 500) // 500ms timeout - very fast
+    }, 3000) // 3 second timeout - more reasonable
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -261,7 +262,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         const profileTimeout = setTimeout(() => {
           console.log('⏰ Profile fetch timeout - showing guest interface')
           setLoading(false)
-        }, 2000)
+        }, 5000) // 5 second timeout for profile fetch
         
         fetchUserProfile(session.user.id).finally(() => {
           clearTimeout(profileTimeout)
@@ -295,7 +296,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
             const profileTimeout = setTimeout(() => {
               console.log('⏰ Profile fetch timeout - showing guest interface')
               setLoading(false)
-            }, 2000)
+            }, 5000) // 5 second timeout for profile fetch
             
             try {
               await fetchUserProfile(session.user.id)
