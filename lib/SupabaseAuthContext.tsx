@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 
@@ -49,6 +49,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [fetchingProfile, setFetchingProfile] = useState(false)
+  const [lastUpdateTime, setLastUpdateTime] = useState(0)
 
   const fetchUserProfile = async (userId: string) => {
     // Prevent multiple simultaneous fetches
@@ -143,43 +144,75 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const updateUserData = async (data: Partial<UserProfile>) => {
+  const updateUserData = useCallback(async (data: Partial<UserProfile>) => {
     if (!user) return
 
+    // Add protection against rapid updates
+    if (fetchingProfile) {
+      console.log('⏸️ Profile fetch in progress, skipping update')
+      return
+    }
+
+    // Debounce updates - prevent updates more frequent than 1 second
+    const now = Date.now()
+    if (now - lastUpdateTime < 1000) {
+      console.log('⏸️ Update too frequent, skipping...')
+      return
+    }
+
     try {
+      console.log('🔄 Updating user data:', data)
+      setLastUpdateTime(now)
+      
       // Update profile
       if (data.name || data.image_url) {
-        await supabase
+        const { error } = await supabase
           .from('profiles')
           .update({
             name: data.name,
             image_url: data.image_url
           })
           .eq('id', user.id)
+        
+        if (error) {
+          console.error('❌ Error updating profile:', error)
+          return
+        }
       }
 
       // Update streak data
       if (data.streakData) {
-        await supabase
+        const { error } = await supabase
           .from('streak_data')
           .update(data.streakData)
           .eq('id', user.id)
+        
+        if (error) {
+          console.error('❌ Error updating streak data:', error)
+          return
+        }
       }
 
       // Update preferences
       if (data.preferences) {
-        await supabase
+        const { error } = await supabase
           .from('user_preferences')
           .update(data.preferences)
           .eq('id', user.id)
+        
+        if (error) {
+          console.error('❌ Error updating preferences:', error)
+          return
+        }
       }
 
       // Update local state instead of re-fetching
       setUser(prevUser => prevUser ? { ...prevUser, ...data } : null)
+      console.log('✅ User data updated successfully')
     } catch (error) {
-      console.error('Error updating user data:', error)
+      console.error('❌ Error updating user data:', error)
     }
-  }
+  }, [user, fetchingProfile, lastUpdateTime])
 
   const signIn = async () => {
     console.log('🔐 Starting Google sign-in...')

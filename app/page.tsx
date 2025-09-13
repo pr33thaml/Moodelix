@@ -729,7 +729,7 @@ export default function HomePage() {
         }
       })
     }
-  }, [timerDurations, autoBreakSettings, blurIntensity, wallpaperBrightness, soundEffectsEnabled, user, updateUserData])
+  }, [timerDurations, autoBreakSettings, blurIntensity, wallpaperBrightness, soundEffectsEnabled, user])
 
   useEffect(() => {
     setMounted(true)
