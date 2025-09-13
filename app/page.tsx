@@ -796,6 +796,21 @@ export default function HomePage() {
     }
   }, [user])
 
+  // Handle auth errors from URL parameters
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const error = urlParams.get('error')
+      const details = urlParams.get('details')
+      
+      if (error === 'auth_failed') {
+        console.error('❌ Auth failed:', details)
+        // Clean up the URL
+        window.history.replaceState(null, '', window.location.pathname)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (!mounted) return
     const clock = setInterval(() => setTimeString(new Date().toLocaleTimeString()), 1000)

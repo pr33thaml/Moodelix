@@ -29,6 +29,12 @@ export async function GET(request: NextRequest) {
             cookieStore.set({ name, value: '', ...options })
           },
         },
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce'
+        }
       }
     )
     
@@ -36,12 +42,21 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
       if (error) {
         console.error('❌ Error exchanging code for session:', error)
-        return NextResponse.redirect(`${requestUrl.origin}?error=auth_failed`)
+        console.error('❌ Error details:', {
+          message: error.message,
+          status: error.status
+        })
+        return NextResponse.redirect(`${requestUrl.origin}?error=auth_failed&details=${encodeURIComponent(error.message)}`)
       }
       console.log('✅ Session exchanged successfully:', data.session?.user?.email)
+      console.log('✅ Session data:', {
+        userId: data.session?.user?.id,
+        email: data.session?.user?.email,
+        expiresAt: data.session?.expires_at
+      })
     } catch (error) {
       console.error('❌ Error in auth callback:', error)
-      return NextResponse.redirect(`${requestUrl.origin}?error=auth_failed`)
+      return NextResponse.redirect(`${requestUrl.origin}?error=auth_failed&details=${encodeURIComponent(String(error))}`)
     }
   }
 
