@@ -51,7 +51,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [fetchingProfile, setFetchingProfile] = useState(false)
   const [lastUpdateTime, setLastUpdateTime] = useState(0)
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, currentSession?: Session | null) => {
     // Prevent multiple simultaneous fetches
     if (fetchingProfile) {
       console.log('⏸️ Profile fetch already in progress, skipping...')
@@ -259,6 +259,32 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         setUser(userProfile)
       } else {
         console.log('❌ No profile data returned')
+        // Even if profile fetch fails, we still have a valid session
+        // Create a basic user profile with session data
+        if (currentSession?.user) {
+          const basicUserProfile: UserProfile = {
+            id: currentSession.user.id,
+            email: currentSession.user.email || '',
+            name: currentSession.user.user_metadata?.full_name || '',
+            image_url: currentSession.user.user_metadata?.avatar_url || '',
+            streakData: {
+              current_streak: 0,
+              total_focused_hours: 0,
+              daily_goal: 4,
+              today_focused_minutes: 0,
+              last_focus_date: null
+            },
+            preferences: {
+              timer_durations: { focus: 25, shortBreak: 5, longBreak: 15 },
+              auto_break_settings: { enabled: true, breakDuration: 10, skipBreaks: false },
+              blur_intensity: 10,
+              wallpaper_brightness: 'normal',
+              sound_effects_enabled: false
+            }
+          }
+          console.log('✅ Using basic user profile from session:', basicUserProfile)
+          setUser(basicUserProfile)
+        }
       }
       setLoading(false)
       setFetchingProfile(false)
@@ -386,9 +412,9 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         const profileTimeout = setTimeout(() => {
           console.log('⏰ Profile fetch timeout - showing guest interface')
           setLoading(false)
-        }, 5000) // 5 second timeout for profile fetch
+        }, 10000) // 10 second timeout for profile fetch
         
-        fetchUserProfile(session.user.id).finally(() => {
+        fetchUserProfile(session.user.id, session).finally(() => {
           clearTimeout(profileTimeout)
         })
       } else {
@@ -420,10 +446,10 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
             const profileTimeout = setTimeout(() => {
               console.log('⏰ Profile fetch timeout - showing guest interface')
               setLoading(false)
-            }, 5000) // 5 second timeout for profile fetch
+            }, 10000) // 10 second timeout for profile fetch
             
             try {
-              await fetchUserProfile(session.user.id)
+              await fetchUserProfile(session.user.id, session)
             } finally {
               clearTimeout(profileTimeout)
             }
