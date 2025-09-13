@@ -2,15 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useSupabaseAuth } from '@/lib/SupabaseAuthContext'
+import { fetchTodos, addTodo, updateTodo, deleteTodo, type Todo } from '@/lib/todos'
 
-type Todo = {
-  id: string
-  title: string
-  completed: boolean
-  due_at?: string
-  created_at?: string
-  updated_at?: string
-}
 
 export default function TodoList() {
   const { user, session } = useSupabaseAuth()
@@ -18,7 +11,7 @@ export default function TodoList() {
   const [title, setTitle] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function fetchTodos() {
+  async function fetchTodosFromAPI() {
     if (!session) {
       console.log('No session, clearing todos')
       setTodos([])
@@ -27,19 +20,9 @@ export default function TodoList() {
 
     try {
       console.log('🔄 Fetching todos for user:', session.user.id)
-      const res = await fetch('/api/todos')
-      console.log('📡 Fetch response:', res.status, res.statusText)
-      
-      if (res.ok) {
-        const data = await res.json()
-        console.log('📦 Raw API response:', data)
-        setTodos(Array.isArray(data) ? data : [])
-        console.log('✅ Todos fetched:', data)
-      } else {
-        const errorData = await res.json()
-        console.error('❌ Error fetching todos:', res.status, res.statusText, errorData)
-        setTodos([])
-      }
+      const data = await fetchTodos()
+      setTodos(data)
+      console.log('✅ Todos fetched:', data)
     } catch (error) {
       console.error('❌ Error fetching todos:', error)
       setTodos([])
@@ -47,10 +30,10 @@ export default function TodoList() {
   }
 
   useEffect(() => { 
-    fetchTodos() 
+    fetchTodosFromAPI() 
   }, [session])
 
-  async function addTodo(e: React.FormEvent) {
+  async function addTodoHandler(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !session) {
       console.log('❌ Cannot add todo - no title or session:', { title: title.trim(), hasSession: !!session })
@@ -59,20 +42,11 @@ export default function TodoList() {
     setLoading(true)
     try {
       console.log('🔄 Adding todo:', title)
-      const res = await fetch('/api/todos', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ title }) 
-      })
-      console.log('📡 Todo API response:', res.status, res.statusText)
-      if (res.ok) {
-        const data = await res.json()
-        console.log('✅ Todo added successfully:', data)
+      const newTodo = await addTodo(title)
+      if (newTodo) {
+        console.log('✅ Todo added successfully:', newTodo)
         setTitle('')
-        await fetchTodos()
-      } else {
-        const errorData = await res.json()
-        console.error('❌ Error adding todo:', res.status, res.statusText, errorData)
+        await fetchTodosFromAPI()
       }
     } catch (error) {
       console.error('❌ Error adding todo:', error)
@@ -84,16 +58,10 @@ export default function TodoList() {
   async function toggleTodo(id: string, completed: boolean) {
     if (!session) return
     try {
-      const res = await fetch(`/api/todos/${id}`, { 
-        method: 'PATCH', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ completed: !completed }) 
-      })
-      if (res.ok) {
-        await fetchTodos()
+      const updatedTodo = await updateTodo(id, { completed: !completed })
+      if (updatedTodo) {
+        await fetchTodosFromAPI()
         console.log('✅ Todo toggled successfully')
-      } else {
-        console.error('❌ Error toggling todo:', res.status, res.statusText)
       }
     } catch (error) {
       console.error('❌ Error toggling todo:', error)
@@ -103,12 +71,10 @@ export default function TodoList() {
   async function removeTodo(id: string) {
     if (!session) return
     try {
-      const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        await fetchTodos()
+      const success = await deleteTodo(id)
+      if (success) {
+        await fetchTodosFromAPI()
         console.log('✅ Todo removed successfully')
-      } else {
-        console.error('❌ Error removing todo:', res.status, res.statusText)
       }
     } catch (error) {
       console.error('❌ Error removing todo:', error)
@@ -141,7 +107,7 @@ export default function TodoList() {
       <h2 className="text-2xl font-bold text-black mb-6">Todo App</h2>
       
       {/* Add New Todo Section */}
-      <form onSubmit={addTodo} className="flex gap-3 mb-6">
+      <form onSubmit={addTodoHandler} className="flex gap-3 mb-6">
         <input
           type="text"
           value={title}
