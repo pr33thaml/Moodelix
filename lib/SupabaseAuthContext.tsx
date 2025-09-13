@@ -229,9 +229,9 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       if (profile) {
         const userProfile: UserProfile = {
           id: profile.id,
-          email: profile.email,
-          name: profile.name || '',
-          image_url: profile.image_url,
+          email: profile.email || currentSession?.user?.email || currentSession?.user?.user_metadata?.email || '',
+          name: profile.name || currentSession?.user?.user_metadata?.full_name || currentSession?.user?.user_metadata?.name || '',
+          image_url: profile.image_url || currentSession?.user?.user_metadata?.avatar_url || currentSession?.user?.user_metadata?.picture || '',
           streakData: {
             current_streak: streakData?.current_streak || 0,
             total_focused_hours: streakData?.total_focused_hours || 0,
@@ -264,9 +264,9 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         if (currentSession?.user) {
           const basicUserProfile: UserProfile = {
             id: currentSession.user.id,
-            email: currentSession.user.email || '',
-            name: currentSession.user.user_metadata?.full_name || '',
-            image_url: currentSession.user.user_metadata?.avatar_url || '',
+            email: currentSession.user.email || currentSession.user.user_metadata?.email || '',
+            name: currentSession.user.user_metadata?.full_name || currentSession.user.user_metadata?.name || '',
+            image_url: currentSession.user.user_metadata?.avatar_url || currentSession.user.user_metadata?.picture || '',
             streakData: {
               current_streak: 0,
               total_focused_hours: 0,
