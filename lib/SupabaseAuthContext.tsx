@@ -371,7 +371,11 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       })
       console.log('🔐 Sign-in response:', { data, error })
@@ -402,7 +406,8 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         userId: session?.user?.id,
         email: session?.user?.email,
         expiresAt: session?.expires_at,
-        error 
+        error,
+        currentUrl: typeof window !== 'undefined' ? window.location.href : 'server'
       })
       clearTimeout(immediateTimeout)
       setSession(session)

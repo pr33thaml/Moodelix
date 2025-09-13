@@ -787,6 +787,15 @@ export default function HomePage() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
+  // Clean up URL hash after successful authentication
+  useEffect(() => {
+    if (user && window.location.hash) {
+      console.log('🧹 Cleaning up URL hash after successful login')
+      // Remove the hash from URL without causing a page reload
+      window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    }
+  }, [user])
+
   useEffect(() => {
     if (!mounted) return
     const clock = setInterval(() => setTimeString(new Date().toLocaleTimeString()), 1000)
