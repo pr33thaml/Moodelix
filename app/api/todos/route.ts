@@ -38,6 +38,15 @@ export async function GET() {
     }
 
     console.log('🔍 Fetching todos for user:', user.id)
+    
+    // First, let's check if the todos table exists
+    const { data: tableCheck, error: tableError } = await supabase
+      .from('todos')
+      .select('*')
+      .limit(1)
+    
+    console.log('🔍 Table check result:', { tableCheck, tableError })
+    
     const { data: todos, error } = await supabase
       .from('todos')
       .select('*')
