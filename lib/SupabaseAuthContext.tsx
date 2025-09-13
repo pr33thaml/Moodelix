@@ -389,8 +389,8 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔧 SupabaseAuthProvider initializing...')
     
-    // Get initial session immediately
-    const getInitialSession = async () => {
+    // Give a small delay for session restoration
+    const timeout = setTimeout(async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         console.log('🔧 Initial session check:', { 
@@ -415,9 +415,9 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       } finally {
         setLoading(false)
       }
-    }
+    }, 100) // Small delay to allow session restoration
     
-    getInitialSession()
+    return () => clearTimeout(timeout)
 
     // Also listen for auth changes immediately
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
