@@ -66,6 +66,12 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('❌ Error fetching profile:', error)
+        console.error('❌ Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
         setLoading(false)
         return
       }
@@ -101,11 +107,14 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
             sound_effects_enabled: profile.user_preferences?.sound_effects_enabled || false
           }
         }
+        console.log('✅ Setting user profile:', userProfile)
         setUser(userProfile)
+      } else {
+        console.log('❌ No profile data returned')
       }
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching user profile:', error)
+      console.error('❌ Error fetching user profile:', error)
       setLoading(false)
     }
   }
@@ -176,7 +185,13 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log('🔧 Initial session check:', { session: !!session, error })
+      console.log('🔧 Initial session check:', { 
+        session: !!session, 
+        userId: session?.user?.id,
+        email: session?.user?.email,
+        expiresAt: session?.expires_at,
+        error 
+      })
       clearTimeout(immediateTimeout)
       setSession(session)
       if (session?.user?.id) {
@@ -195,7 +210,12 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔄 Auth state changed:', event, session?.user?.email)
+        console.log('🔄 Auth state changed:', { 
+          event, 
+          email: session?.user?.email,
+          userId: session?.user?.id,
+          hasSession: !!session
+        })
         clearTimeout(immediateTimeout)
         setSession(session)
         if (session?.user?.id) {
