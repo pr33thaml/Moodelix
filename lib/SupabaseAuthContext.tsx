@@ -160,12 +160,18 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signIn = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    })
+    console.log('🔐 Starting Google sign-in...')
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      console.log('🔐 Sign-in response:', { data, error })
+    } catch (error) {
+      console.error('🔐 Sign-in error:', error)
+    }
   }
 
   const signOut = async () => {
