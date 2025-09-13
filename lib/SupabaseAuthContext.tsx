@@ -48,10 +48,18 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [fetchingProfile, setFetchingProfile] = useState(false)
 
   const fetchUserProfile = async (userId: string) => {
+    // Prevent multiple simultaneous fetches
+    if (fetchingProfile) {
+      console.log('⏸️ Profile fetch already in progress, skipping...')
+      return
+    }
+
     try {
       console.log('🔍 Fetching user profile for ID:', userId)
+      setFetchingProfile(true)
       setLoading(true)
       
       // Fetch data separately to avoid JOIN issues
@@ -68,18 +76,21 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       if (profileResult.error) {
         console.error('❌ Error fetching profile:', profileResult.error)
         setLoading(false)
+        setFetchingProfile(false)
         return
       }
 
       if (streakResult.error) {
         console.error('❌ Error fetching streak data:', streakResult.error)
         setLoading(false)
+        setFetchingProfile(false)
         return
       }
 
       if (preferencesResult.error) {
         console.error('❌ Error fetching preferences:', preferencesResult.error)
         setLoading(false)
+        setFetchingProfile(false)
         return
       }
 
@@ -124,9 +135,11 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         console.log('❌ No profile data returned')
       }
       setLoading(false)
+      setFetchingProfile(false)
     } catch (error) {
       console.error('❌ Error fetching user profile:', error)
       setLoading(false)
+      setFetchingProfile(false)
     }
   }
 
@@ -161,10 +174,8 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
           .eq('id', user.id)
       }
 
-      // Refresh user data
-      if (session?.user?.id) {
-        await fetchUserProfile(session.user.id)
-      }
+      // Update local state instead of re-fetching
+      setUser(prevUser => prevUser ? { ...prevUser, ...data } : null)
     } catch (error) {
       console.error('Error updating user data:', error)
     }
@@ -245,16 +256,22 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         setSession(session)
         if (session?.user?.id) {
           console.log('🔄 User authenticated, fetching profile...')
-          // Add timeout for profile fetching
-          const profileTimeout = setTimeout(() => {
-            console.log('⏰ Profile fetch timeout - showing guest interface')
+          // Only fetch if we don't already have user data or if it's a different user
+          if (!user || user.id !== session.user.id) {
+            // Add timeout for profile fetching
+            const profileTimeout = setTimeout(() => {
+              console.log('⏰ Profile fetch timeout - showing guest interface')
+              setLoading(false)
+            }, 2000)
+            
+            try {
+              await fetchUserProfile(session.user.id)
+            } finally {
+              clearTimeout(profileTimeout)
+            }
+          } else {
+            console.log('🔄 User data already exists, skipping fetch')
             setLoading(false)
-          }, 2000)
-          
-          try {
-            await fetchUserProfile(session.user.id)
-          } finally {
-            clearTimeout(profileTimeout)
           }
         } else {
           console.log('🔄 No user, clearing user data')
