@@ -14,7 +14,18 @@ export async function GET() {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
         },
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
       }
     )
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -62,7 +73,18 @@ export async function POST(req: Request) {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
         },
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
       }
     )
     const { data: { user }, error: userError } = await supabase.auth.getUser()
