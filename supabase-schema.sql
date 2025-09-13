@@ -59,6 +59,10 @@ CREATE POLICY "Users can update own profile" ON profiles
 CREATE POLICY "Users can insert own profile" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
+-- Allow system to insert profiles during user creation (for trigger)
+CREATE POLICY "System can insert profiles during user creation" ON profiles
+  FOR INSERT WITH CHECK (true);
+
 CREATE POLICY "Users can view own preferences" ON user_preferences
   FOR SELECT USING (auth.uid() = id);
 
@@ -67,6 +71,10 @@ CREATE POLICY "Users can update own preferences" ON user_preferences
 
 CREATE POLICY "Users can insert own preferences" ON user_preferences
   FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Allow system to insert preferences during user creation (for trigger)
+CREATE POLICY "System can insert preferences during user creation" ON user_preferences
+  FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "Users can view own streak data" ON streak_data
   FOR SELECT USING (auth.uid() = id);
@@ -77,6 +85,10 @@ CREATE POLICY "Users can update own streak data" ON streak_data
 CREATE POLICY "Users can insert own streak data" ON streak_data
   FOR INSERT WITH CHECK (auth.uid() = id);
 
+-- Allow system to insert streak data during user creation (for trigger)
+CREATE POLICY "System can insert streak data during user creation" ON streak_data
+  FOR INSERT WITH CHECK (true);
+
 CREATE POLICY "Users can view own focus sessions" ON focus_sessions
   FOR SELECT USING (auth.uid() = user_id);
 
@@ -86,17 +98,41 @@ CREATE POLICY "Users can insert own focus sessions" ON focus_sessions
 -- Create function to handle new user signup
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  user_name TEXT;
+  user_avatar_url TEXT;
 BEGIN
-  INSERT INTO profiles (id, email, name, image_url)
-  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'avatar_url');
+  -- Safely extract name and avatar_url with fallbacks
+  user_name := COALESCE(
+    NEW.raw_user_meta_data->>'name',
+    NEW.raw_user_meta_data->>'full_name',
+    split_part(NEW.email, '@', 1)
+  );
   
+  user_avatar_url := COALESCE(
+    NEW.raw_user_meta_data->>'avatar_url',
+    NEW.raw_user_meta_data->>'picture',
+    NULL
+  );
+  
+  -- Insert profile with safe values
+  INSERT INTO profiles (id, email, name, image_url)
+  VALUES (NEW.id, NEW.email, user_name, user_avatar_url);
+  
+  -- Insert default preferences
   INSERT INTO user_preferences (id)
   VALUES (NEW.id);
   
+  -- Insert default streak data
   INSERT INTO streak_data (id)
   VALUES (NEW.id);
   
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Log the error but don't fail the user creation
+    RAISE LOG 'Error in handle_new_user trigger: %', SQLERRM;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
