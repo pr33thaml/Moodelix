@@ -52,6 +52,8 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (userId: string) => {
     try {
       console.log('🔍 Fetching user profile for ID:', userId)
+      setLoading(true)
+      
       const { data: profile, error } = await supabase
         .from('profiles')
         .select(`
@@ -64,6 +66,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('❌ Error fetching profile:', error)
+        setLoading(false)
         return
       }
 
@@ -100,8 +103,10 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         }
         setUser(userProfile)
       }
+      setLoading(false)
     } catch (error) {
       console.error('Error fetching user profile:', error)
+      setLoading(false)
     }
   }
 
@@ -161,30 +166,49 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    console.log('🔧 SupabaseAuthProvider initializing...')
+    
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.log('⏰ Loading timeout reached, setting loading to false')
+      setLoading(false)
+    }, 10000) // 10 second timeout
+    
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('🔧 Initial session check:', { session: !!session, error })
+      clearTimeout(loadingTimeout)
       setSession(session)
       if (session?.user?.id) {
+        console.log('🔧 User found, fetching profile...')
         fetchUserProfile(session.user.id)
+      } else {
+        console.log('🔧 No user found, setting loading to false')
+        setLoading(false)
       }
-      setLoading(false)
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event, session?.user?.email)
+        clearTimeout(loadingTimeout)
         setSession(session)
         if (session?.user?.id) {
+          console.log('🔄 User authenticated, fetching profile...')
           await fetchUserProfile(session.user.id)
         } else {
+          console.log('🔄 No user, clearing user data')
           setUser(null)
         }
         setLoading(false)
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(loadingTimeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   return (
