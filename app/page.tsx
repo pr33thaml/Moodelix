@@ -1069,39 +1069,6 @@ export default function HomePage() {
         )}
         
         <div className="flex items-center gap-3">
-          {/* User Status Indicator */}
-          {!loading && (
-            <div className="flex items-center gap-2">
-              {user ? (
-                <div className="flex items-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg backdrop-blur">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-green-400 text-sm font-medium">
-                    {user.name || user.email}
-                  </span>
-                  <button
-                    onClick={() => {
-                      playClickSoundIfEnabled()
-                      signOut()
-                    }}
-                    className="text-green-400/60 hover:text-green-400 transition-colors"
-                    title="Sign Out"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/20 border border-orange-500/30 rounded-lg backdrop-blur">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                  <span className="text-orange-400 text-sm font-medium">
-                    Not signed in
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
           <Tooltip content={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}>
             <button
               onClick={() => {

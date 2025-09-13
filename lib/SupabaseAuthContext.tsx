@@ -51,7 +51,8 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      const { data: profile } = await supabase
+      console.log('🔍 Fetching user profile for ID:', userId)
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select(`
           *,
@@ -60,6 +61,13 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         `)
         .eq('id', userId)
         .single()
+
+      if (error) {
+        console.error('❌ Error fetching profile:', error)
+        return
+      }
+
+      console.log('✅ Profile data:', profile)
 
       if (profile) {
         const userProfile: UserProfile = {
@@ -165,6 +173,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔄 Auth state changed:', event, session?.user?.email)
         setSession(session)
         if (session?.user?.id) {
           await fetchUserProfile(session.user.id)
