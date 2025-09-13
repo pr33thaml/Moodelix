@@ -168,11 +168,11 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔧 SupabaseAuthProvider initializing...')
     
-    // Set a timeout to prevent infinite loading
+    // Set a shorter timeout for Vercel - show guest interface quickly
     const loadingTimeout = setTimeout(() => {
-      console.log('⏰ Loading timeout reached, setting loading to false')
+      console.log('⏰ Loading timeout reached, showing guest interface')
       setLoading(false)
-    }, 10000) // 10 second timeout
+    }, 3000) // 3 second timeout for faster UX
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -186,6 +186,10 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         console.log('🔧 No user found, setting loading to false')
         setLoading(false)
       }
+    }).catch((error) => {
+      console.error('🔧 Error getting session:', error)
+      clearTimeout(loadingTimeout)
+      setLoading(false)
     })
 
     // Listen for auth changes
