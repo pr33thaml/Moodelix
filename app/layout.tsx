@@ -1,5 +1,6 @@
 import './globals.css'
 import type { Metadata } from 'next'
+import { SupabaseAuthProvider } from '@/lib/SupabaseAuthContext'
 
 export const metadata: Metadata = {
   title: 'Moodelix',
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen">
-        {children}
+        <SupabaseAuthProvider>
+          {children}
+        </SupabaseAuthProvider>
       </body>
     </html>
   )

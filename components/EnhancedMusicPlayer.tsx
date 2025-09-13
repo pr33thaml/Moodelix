@@ -7,9 +7,10 @@ interface EnhancedMusicPlayerProps {
   onMusicPlay: (platform: 'youtube' | 'spotify', title: string, embedUrl: string) => void
   isPlaying: boolean
   onTogglePlay: () => void
+  blurIntensity?: number
 }
 
-export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, onTogglePlay }: EnhancedMusicPlayerProps) {
+export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, onTogglePlay, blurIntensity = 10 }: EnhancedMusicPlayerProps) {
   const [url, setUrl] = useState('')
   const [currentContent, setCurrentContent] = useState<{
     type: 'youtube' | 'spotify'
@@ -112,7 +113,10 @@ export default function EnhancedMusicPlayer({ onClose, onMusicPlay, isPlaying, o
   }
 
   return (
-    <div className="bg-black/30 border border-white/20 rounded-xl p-6 w-full max-w-5xl backdrop-blur-sm">
+    <div 
+      className="bg-black/30 border border-white/20 rounded-xl p-6 w-full max-w-5xl backdrop-blur-sm"
+      style={{ backdropFilter: `blur(${blurIntensity}px)` }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-white text-2xl font-semibold">Music Player</h2>

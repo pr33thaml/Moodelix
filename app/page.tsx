@@ -6,10 +6,12 @@ import BackgroundMusicPlayer from '@/components/BackgroundMusicPlayer'
 import CenterMenu from '@/components/CenterMenu'
 import BugReportPopup from '@/components/BugReportPopup'
 import { useSoundEffects } from '@/lib/useSoundEffects'
+import { useSupabaseAuth } from '@/lib/SupabaseAuthContext'
 import Tooltip from '@/components/Tooltip'
 import { wallpapers as staticWallpapers, getRandomWallpaper, getLiveWallpapers, getPhotoWallpapers } from '@/lib/wallpaperData'
 
 export default function HomePage() {
+  const { user, updateUserData } = useSupabaseAuth()
   const [timeString, setTimeString] = useState('')
   const [mounted, setMounted] = useState(false)
   const [bgMode, setBgMode] = useState<'video' | 'image'>('video')
@@ -242,14 +244,15 @@ export default function HomePage() {
 
   // Timer duration control functions
   const increaseTimerDuration = (mode: 'focus' | 'shortBreak' | 'longBreak') => {
+    const maxMinutes = mode === 'focus' ? 240 : 60 // Focus sessions can go up to 240 minutes
     setTimerDurations(prev => ({
       ...prev,
-      [mode]: Math.min(prev[mode] + 1, 60) // Max 60 minutes
+      [mode]: Math.min(prev[mode] + 1, maxMinutes)
     }))
     
     // If this is the current mode and timer is not running, update the display
     if (focusMode === mode && !isTimerRunning) {
-      setTimeLeft((prev) => Math.min(prev + 60, 60 * 60)) // Add 1 minute, max 60 minutes
+      setTimeLeft((prev) => Math.min(prev + 60, maxMinutes * 60))
     }
   }
 
@@ -295,21 +298,50 @@ export default function HomePage() {
         }
       }
       
-      return {
+      const updatedStreakData = {
         ...prev,
         currentStreak: newStreak,
         totalFocusedHours: newTotalFocusedHours,
         todayFocusedMinutes: newTodayFocusedMinutes,
         lastFocusDate: today
       }
+
+      // Sync with server if user is authenticated
+      if (user) {
+        updateUserData({ 
+          streakData: {
+            current_streak: updatedStreakData.currentStreak,
+            total_focused_hours: updatedStreakData.totalFocusedHours,
+            daily_goal: updatedStreakData.dailyGoal,
+            today_focused_minutes: updatedStreakData.todayFocusedMinutes,
+            last_focus_date: updatedStreakData.lastFocusDate
+          }
+        })
+      }
+
+      return updatedStreakData
     })
   }
 
   const updateDailyGoal = (newGoal: number) => {
-    setStreakData(prev => ({
-      ...prev,
+    const updatedStreakData = {
+      ...streakData,
       dailyGoal: Math.max(1, Math.min(12, newGoal)) // Between 1-12 hours
-    }))
+    }
+    setStreakData(updatedStreakData)
+    
+    // Sync with server if user is authenticated
+    if (user) {
+      updateUserData({ 
+        streakData: {
+          current_streak: updatedStreakData.currentStreak,
+          total_focused_hours: updatedStreakData.totalFocusedHours,
+          daily_goal: updatedStreakData.dailyGoal,
+          today_focused_minutes: updatedStreakData.todayFocusedMinutes,
+          last_focus_date: updatedStreakData.lastFocusDate
+        }
+      })
+    }
   }
 
   // Auto break system functions
@@ -342,8 +374,8 @@ export default function HomePage() {
           skipped: false
         }
       )
-    } else if (totalMinutes >= 125) {
-      // 125+ minutes: 3 breaks at 20, 60, and 100 minutes
+    } else if (totalMinutes >= 125 && totalMinutes < 180) {
+      // 125-179 minutes: 3 breaks at 20, 60, and 100 minutes
       breaks.push(
         {
           id: 'break-1',
@@ -360,6 +392,34 @@ export default function HomePage() {
         {
           id: 'break-3',
           time: 100,
+          completed: false,
+          skipped: false
+        }
+      )
+    } else if (totalMinutes >= 180) {
+      // 180+ minutes: 4 breaks at 20, 60, 100, and 140 minutes
+      breaks.push(
+        {
+          id: 'break-1',
+          time: 20,
+          completed: false,
+          skipped: false
+        },
+        {
+          id: 'break-2',
+          time: 60,
+          completed: false,
+          skipped: false
+        },
+        {
+          id: 'break-3',
+          time: 100,
+          completed: false,
+          skipped: false
+        },
+        {
+          id: 'break-4',
+          time: 140,
           completed: false,
           skipped: false
         }
@@ -621,6 +681,54 @@ export default function HomePage() {
       setIsLoadingWallpaper(false)
     }
   }
+
+  // Sync user data when user changes
+  useEffect(() => {
+    if (user) {
+      // Load user preferences
+      if (user.preferences.timer_durations) {
+        setTimerDurations(user.preferences.timer_durations)
+      }
+      if (user.preferences.auto_break_settings) {
+        setAutoBreakSettings(user.preferences.auto_break_settings)
+      }
+      if (user.preferences.blur_intensity !== undefined) {
+        setBlurIntensity(user.preferences.blur_intensity)
+      }
+      if (user.preferences.wallpaper_brightness) {
+        setWallpaperBrightness(user.preferences.wallpaper_brightness)
+      }
+      if (user.preferences.sound_effects_enabled !== undefined) {
+        setSoundEffectsEnabled(user.preferences.sound_effects_enabled)
+      }
+      
+      // Load user streak data
+      if (user.streakData) {
+        setStreakData({
+          currentStreak: user.streakData.current_streak,
+          totalFocusedHours: user.streakData.total_focused_hours,
+          dailyGoal: user.streakData.daily_goal,
+          todayFocusedMinutes: user.streakData.today_focused_minutes,
+          lastFocusDate: user.streakData.last_focus_date
+        })
+      }
+    }
+  }, [user])
+
+  // Sync preferences to server when they change
+  useEffect(() => {
+    if (user) {
+      updateUserData({
+        preferences: {
+          timer_durations: timerDurations,
+          auto_break_settings: autoBreakSettings,
+          blur_intensity: blurIntensity,
+          wallpaper_brightness: wallpaperBrightness,
+          sound_effects_enabled: soundEffectsEnabled
+        }
+      })
+    }
+  }, [timerDurations, autoBreakSettings, blurIntensity, wallpaperBrightness, soundEffectsEnabled, user, updateUserData])
 
   useEffect(() => {
     setMounted(true)
@@ -1552,11 +1660,12 @@ export default function HomePage() {
                     <input
                       type="number"
                       min="1"
-                      max="60"
+                      max={focusMode === 'focus' ? 240 : 60}
                       value={timerDurations[focusMode]}
                       onChange={(e) => {
                         const value = parseInt(e.target.value)
-                        if (!isNaN(value) && value >= 1 && value <= 60) {
+                        const maxValue = focusMode === 'focus' ? 240 : 60
+                        if (!isNaN(value) && value >= 1 && value <= maxValue) {
                           setTimerDurations(prev => ({
                             ...prev,
                             [focusMode]: value
@@ -1571,10 +1680,11 @@ export default function HomePage() {
                       onBlur={(e) => {
                         const value = parseInt(e.target.value)
                         const minValue = focusMode === 'focus' ? 25 : 1
-                        if (isNaN(value) || value < minValue) {
+                        const maxValue = focusMode === 'focus' ? 240 : 60
+                        if (isNaN(value) || value < minValue || value > maxValue) {
                           setTimerDurations(prev => ({
                             ...prev,
-                            [focusMode]: minValue
+                            [focusMode]: Math.max(minValue, Math.min(maxValue, value || minValue))
                           }))
                           if (!isTimerRunning) {
                             setTimeLeft(minValue * 60)
@@ -2006,8 +2116,8 @@ export default function HomePage() {
               }}
               wallpapers={getLiveWallpapers().map(w => w.url).concat(getPhotoWallpapers().map(w => w.url))}
               buttonSize={buttonSize}
-              onClick={playClickSoundIfEnabled}
               blurIntensity={blurIntensity}
+              onClick={playClickSoundIfEnabled}
             />
         </div>
       </footer>
@@ -2027,10 +2137,12 @@ export default function HomePage() {
               onMusicPlay={handleMusicPlay}
               isPlaying={isMusicPlaying}
               onTogglePlay={() => setIsMusicPlaying(!isMusicPlaying)}
+              blurIntensity={blurIntensity}
             />
           </div>
         </div>
       )}
+
 
       {/* Background Music Player */}
       <BackgroundMusicPlayer
