@@ -104,7 +104,7 @@ export default function HomePage() {
   const [streakData, setStreakData] = useState({
     currentStreak: 0,
     totalFocusedHours: 0,
-    dailyGoal: 4, // hours
+    dailyGoal: 1, // hours - default to 1 hour
     todayFocusedMinutes: 0,
     lastFocusDate: null as string | null
   })
@@ -112,7 +112,7 @@ export default function HomePage() {
   // Auto break system state
   const [autoBreakSettings, setAutoBreakSettings] = useState({
     enabled: true,
-    breakDuration: 10, // minutes
+    breakDuration: 10, // minutes - will be calculated dynamically
     skipBreaks: false
   })
   const [scheduledBreaks, setScheduledBreaks] = useState<Array<{
@@ -258,6 +258,29 @@ export default function HomePage() {
     fetchTodosFromAPI()
   }, [session])
 
+  // Calculate task progress
+  const taskProgress = useMemo(() => {
+    if (todos.length === 0) return 0
+    const completedTasks = todos.filter(todo => todo.completed).length
+    return Math.round((completedTasks / todos.length) * 100)
+  }, [todos])
+
+  // Calculate focus streak progress
+  const focusProgress = useMemo(() => {
+    const goalMinutes = streakData.dailyGoal * 60
+    if (goalMinutes === 0) return 0
+    return Math.min(Math.round((streakData.todayFocusedMinutes / goalMinutes) * 100), 100)
+  }, [streakData.todayFocusedMinutes, streakData.dailyGoal])
+
+  // Calculate optimal break duration based on session length
+  const calculateBreakDuration = (sessionMinutes: number) => {
+    if (sessionMinutes >= 240) return 15 // 15 min breaks for 240+ min sessions
+    if (sessionMinutes >= 150) return 12 // 12 min breaks for 150-239 min sessions
+    if (sessionMinutes >= 120) return 10 // 10 min breaks for 120-149 min sessions
+    if (sessionMinutes >= 90) return 8  // 8 min breaks for 90-119 min sessions
+    return 5 // 5 min breaks for shorter sessions
+  }
+
   const startTimer = () => {
     if (focusMode === 'focus') {
       startFocusSession()
@@ -386,80 +409,60 @@ export default function HomePage() {
     
     const breaks: Array<{ id: string; time: number; completed: boolean; skipped: boolean }> = []
     
-    if (totalMinutes >= 35 && totalMinutes < 95) {
-      // 35-94 minutes: 1 break at 20 minutes
+    // Dynamic break calculation based on session duration
+    if (totalMinutes >= 240) {
+      // 240+ minutes: 7 breaks with 21-minute segments
+      const segmentDuration = 21
+      for (let i = 1; i <= 7; i++) {
+        breaks.push({
+          id: `break-${i}`,
+          time: segmentDuration * i,
+          completed: false,
+          skipped: false
+        })
+      }
+    } else if (totalMinutes >= 150 && totalMinutes < 240) {
+      // 150-165 minutes: 4 breaks
+      const segmentDuration = Math.floor(totalMinutes / 5) // Divide into 5 segments (4 breaks)
+      for (let i = 1; i <= 4; i++) {
+        breaks.push({
+          id: `break-${i}`,
+          time: segmentDuration * i,
+          completed: false,
+          skipped: false
+        })
+      }
+    } else if (totalMinutes >= 120 && totalMinutes < 150) {
+      // 120-149 minutes: 3 breaks
+      const segmentDuration = Math.floor(totalMinutes / 4) // Divide into 4 segments (3 breaks)
+      for (let i = 1; i <= 3; i++) {
+        breaks.push({
+          id: `break-${i}`,
+          time: segmentDuration * i,
+          completed: false,
+          skipped: false
+        })
+      }
+    } else if (totalMinutes >= 90 && totalMinutes < 120) {
+      // 90-119 minutes: 2 breaks
+      const segmentDuration = Math.floor(totalMinutes / 3) // Divide into 3 segments (2 breaks)
+      for (let i = 1; i <= 2; i++) {
+        breaks.push({
+          id: `break-${i}`,
+          time: segmentDuration * i,
+          completed: false,
+          skipped: false
+        })
+      }
+    } else if (totalMinutes >= 60 && totalMinutes < 90) {
+      // 60-89 minutes: 1 break
+      const segmentDuration = Math.floor(totalMinutes / 2) // Divide into 2 segments (1 break)
       breaks.push({
         id: 'break-1',
-        time: 20,
+        time: segmentDuration,
         completed: false,
         skipped: false
       })
-    } else if (totalMinutes >= 95 && totalMinutes < 125) {
-      // 95-124 minutes: 2 breaks at 20 and 60 minutes
-      breaks.push(
-        {
-          id: 'break-1',
-          time: 20,
-          completed: false,
-          skipped: false
-        },
-        {
-          id: 'break-2',
-          time: 60,
-          completed: false,
-          skipped: false
-        }
-      )
-    } else if (totalMinutes >= 125 && totalMinutes < 180) {
-      // 125-179 minutes: 3 breaks at 20, 60, and 100 minutes
-      breaks.push(
-        {
-          id: 'break-1',
-          time: 20,
-          completed: false,
-          skipped: false
-        },
-        {
-          id: 'break-2',
-          time: 60,
-          completed: false,
-          skipped: false
-        },
-        {
-          id: 'break-3',
-          time: 100,
-          completed: false,
-          skipped: false
-        }
-      )
-    } else if (totalMinutes >= 180) {
-      // 180+ minutes: 4 breaks at 20, 60, 100, and 140 minutes
-      breaks.push(
-        {
-          id: 'break-1',
-          time: 20,
-          completed: false,
-          skipped: false
-        },
-        {
-          id: 'break-2',
-          time: 60,
-          completed: false,
-          skipped: false
-        },
-        {
-          id: 'break-3',
-          time: 100,
-          completed: false,
-          skipped: false
-        },
-        {
-          id: 'break-4',
-          time: 140,
-          completed: false,
-          skipped: false
-        }
-      )
     }
     
     return breaks
@@ -468,6 +471,10 @@ export default function HomePage() {
   const startFocusSession = () => {
     const now = Date.now()
     setCurrentSessionStart(now)
+    
+    // Calculate optimal break duration based on session length
+    const optimalBreakDuration = calculateBreakDuration(timerDurations.focus)
+    setAutoBreakSettings(prev => ({ ...prev, breakDuration: optimalBreakDuration }))
     
     // Calculate breaks for current focus duration
     const breaks = calculateAutoBreaks(timerDurations.focus)
@@ -1748,9 +1755,7 @@ export default function HomePage() {
                   <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
                     <div className="text-orange-400 text-sm font-medium mb-2">📅 Break Schedule</div>
                     <div className="text-white/80 text-sm">
-                      {scheduledBreaks.length === 1 && '1 break at 20 min'}
-                      {scheduledBreaks.length === 2 && '2 breaks at 20 min & 60 min'}
-                      {scheduledBreaks.length === 3 && '3 breaks at 20 min, 60 min & 100 min'}
+                      {scheduledBreaks.length} break{scheduledBreaks.length > 1 ? 's' : ''} at {scheduledBreaks.map((b, i) => `${b.time} min`).join(', ')}
                     </div>
                   </div>
                 )}
@@ -1856,7 +1861,7 @@ export default function HomePage() {
                     {/* Goal Progress */}
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-400">
-                        {Math.round((streakData.todayFocusedMinutes / 60 / streakData.dailyGoal) * 100)}%
+                        {focusProgress}%
                       </div>
                       <div className="text-white/60 text-sm">Goal Progress</div>
                     </div>
@@ -1868,7 +1873,7 @@ export default function HomePage() {
                       <div 
                         className="bg-gradient-to-r from-green-400 to-blue-400 h-2 rounded-full transition-all duration-300"
                         style={{ 
-                          width: `${Math.min((streakData.todayFocusedMinutes / 60 / streakData.dailyGoal) * 100, 100)}%` 
+                          width: `${focusProgress}%` 
                         }}
                       ></div>
                     </div>
@@ -1879,6 +1884,40 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
+
+              {/* Task Progress */}
+              {todos.length > 0 && (
+                <div className="mb-6">
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-white text-lg font-semibold flex items-center gap-2">
+                        <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Task Progress
+                      </h3>
+                      <span className="text-white/60 text-sm">
+                        {todos.filter(t => t.completed).length} of {todos.length} completed
+                      </span>
+                    </div>
+                    
+                    {/* Task Progress Bar */}
+                    <div className="w-full bg-white/10 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-blue-400 to-purple-400 h-3 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${taskProgress}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-white/60 mt-2">
+                      <span>0%</span>
+                      <span className="text-blue-400 font-medium">{taskProgress}% Complete</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Auto Break Settings */}
               <div className="mb-6">
