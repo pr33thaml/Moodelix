@@ -89,6 +89,22 @@ export default function HomePage() {
   const [showBugReport, setShowBugReport] = useState(false)
   const [todos, setTodos] = useState<Todo[]>([])
   const [focusMode, setFocusMode] = useState<'focus' | 'shortBreak' | 'longBreak'>('focus')
+  const [showSoundSettings, setShowSoundSettings] = useState(false)
+  
+  // Sound settings state
+  const [soundSettings, setSoundSettings] = useState({
+    enabled: true,
+    soundType: 'bell' as 'pokemon' | 'train' | 'seatbelt' | 'bell' | 'happy-bell',
+    volume: 50
+  })
+  
+  // Notification state
+  const [notifications, setNotifications] = useState<Array<{
+    id: string
+    message: string
+    type: 'success' | 'info' | 'warning'
+    timestamp: number
+  }>>([])
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [newFocusTask, setNewFocusTask] = useState('')
@@ -168,11 +184,13 @@ export default function HomePage() {
               
               if (remainingBreaks.length > 0 && autoBreakSettings.enabled && !autoBreakSettings.skipBreaks) {
                 // Take a break
-              setFocusMode('shortBreak')
+                addNotification(`Break time! ${autoBreakSettings.breakDuration} minutes to rest and recharge.`, 'info')
+                setFocusMode('shortBreak')
                 setTimeLeft(autoBreakSettings.breakDuration * 60)
                 completeBreak(remainingBreaks[0].id)
               } else {
                 // Session complete
+                addNotification(`🎉 Focus session completed! Great work on your ${timerDurations.focus}-minute session.`, 'success')
                 updateStreakOnFocusComplete()
                 setFocusMode('shortBreak')
                 setTimeLeft(timerDurations.shortBreak * 60)
@@ -183,11 +201,13 @@ export default function HomePage() {
               
               if (remainingBreaks.length > 0) {
                 // Continue with next focus segment
-              setFocusMode('focus')
+                addNotification(`Break over! Back to focus for ${remainingBreaks[0].time} minutes.`, 'info')
+                setFocusMode('focus')
                 setTimeLeft(remainingBreaks[0].time * 60)
             } else {
                 // All segments complete, start new session
-              setFocusMode('focus')
+                addNotification(`All focus segments complete! Ready for a new session.`, 'success')
+                setFocusMode('focus')
                 setTimeLeft(timerDurations.focus * 60)
               }
             } else {
@@ -279,6 +299,28 @@ export default function HomePage() {
     if (sessionMinutes >= 120) return 10 // 10 min breaks for 120-149 min sessions
     if (sessionMinutes >= 90) return 8  // 8 min breaks for 90-119 min sessions
     return 5 // 5 min breaks for shorter sessions
+  }
+
+  // Notification functions
+  const addNotification = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
+    const id = Date.now().toString()
+    const newNotification = {
+      id,
+      message,
+      type,
+      timestamp: Date.now()
+    }
+    
+    setNotifications(prev => [newNotification, ...prev.slice(0, 4)]) // Keep only last 5 notifications
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    }, 5000)
+  }
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
   const startTimer = () => {
@@ -488,6 +530,9 @@ export default function HomePage() {
     }
     
     setIsTimerRunning(true)
+    
+    // Add notification
+    addNotification(`Focus session started! ${timerDurations.focus} minutes of deep work ahead.`, 'success')
   }
 
   const skipBreak = (breakId: string) => {
@@ -1231,6 +1276,7 @@ export default function HomePage() {
             <span className="bar bar1"></span>
           </button>
           </Tooltip>
+
         </div>
       </div>
 
@@ -1629,8 +1675,12 @@ export default function HomePage() {
               ))}
             </div>
           </div>
+
+
         </div>
       )}
+
+      {/* Sound Settings Panel */}
 
       {/* Main Content */}
       {showTodo ? (
@@ -1657,98 +1707,286 @@ export default function HomePage() {
       ) : showFocus ? (
         /* Focus Panel - Replaces main content */
         <div className="relative z-30 min-h-screen px-4 text-center pb-32">
-          <div className="fixed top-32 left-1/2 transform -translate-x-1/2 w-full max-w-6xl mx-auto max-h-[calc(100vh-20rem)] overflow-y-auto custom-scrollbar">
-            <div className="bg-black/30 border border-white/20 rounded-lg p-10" style={{backdropFilter: `blur(${blurIntensity}px)`}}>
-              <div className="flex items-center justify-center mb-6">
-                <h2 className="text-white text-2xl font-semibold">Deep Work Zone</h2>
+          {/* Notifications */}
+          {notifications.length > 0 && (
+            <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`p-4 rounded-lg border shadow-lg backdrop-blur-sm transition-all duration-300 ${
+                    notification.type === 'success' 
+                      ? 'bg-green-500/20 border-green-500/30 text-green-100'
+                      : notification.type === 'warning'
+                      ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-100'
+                      : 'bg-blue-500/20 border-blue-500/30 text-blue-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{notification.message}</span>
+                    <button
+                      onClick={() => removeNotification(notification.id)}
+                      className="ml-2 text-white/60 hover:text-white transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="fixed top-24 left-1/2 transform -translate-x-1/2 w-full max-w-6xl mx-auto max-h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar">
+            <div className="bg-black/30 border border-white/20 rounded-2xl p-12" style={{backdropFilter: `blur(${blurIntensity}px)`}}>
+              <div className="flex items-center justify-center mb-8">
+                <h2 className="text-white text-4xl md:text-5xl font-bold tracking-tight">Deep Work Zone</h2>
               </div>
 
-              <div className="text-center mb-8">
-                <div className="text-8xl font-bold text-white mb-4">
+              {showSoundSettings ? (
+                /* Settings Panel */
+                <div className="mb-8">
+                  <div className="text-center mb-8">
+                    <h3 className="text-white text-2xl font-semibold mb-6 flex items-center justify-center gap-3">
+                      <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
+                        <svg className="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        </svg>
+                      </div>
+                      Settings
+                    </h3>
+                    
+                    {soundSettings.enabled && (
+                      <>
+                        {/* Sound Options */}
+                        <div className="mb-6">
+                          <div className="text-white/80 text-sm font-medium mb-3">Sound Type</div>
+                          <div className="grid grid-cols-3 gap-2 max-w-lg mx-auto">
+                            {[
+                              { key: 'pokemon', label: 'Pokemon Battle' },
+                              { key: 'train', label: 'Train Sound' },
+                              { key: 'seatbelt', label: 'Seatbelt Sound' },
+                              { key: 'bell', label: 'Bell' },
+                              { key: 'happy-bell', label: 'Happy Bell' }
+                            ].map((sound) => (
+                              <button
+                                key={sound.key}
+                                onClick={() => setSoundSettings(prev => ({ ...prev, soundType: sound.key as any }))}
+                                className={`p-2 rounded-lg border transition-all text-left ${
+                                  soundSettings.soundType === sound.key
+                                    ? 'bg-white/10 border-white/40 text-white'
+                                    : 'bg-white/5 border-white/20 text-white/80 hover:bg-white/10'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium">{sound.label}</span>
+                                  {soundSettings.soundType === sound.key && (
+                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {/* Volume Control */}
+                        <div className="mb-6">
+                          <div className="flex items-center justify-center gap-4 mb-3">
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                              </svg>
+                              <span className="text-white/80 text-sm font-medium">Volume</span>
+                            </div>
+                            <span className="text-white/60 text-sm">{soundSettings.volume}%</span>
+                          </div>
+                          <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg max-w-md mx-auto">
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={soundSettings.volume}
+                              onChange={(e) => setSoundSettings(prev => ({ ...prev, volume: Number(e.target.value) }))}
+                              className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                              style={{
+                                background: `linear-gradient(to right, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.6) ${soundSettings.volume}%, rgba(255,255,255,0.1) ${soundSettings.volume}%, rgba(255,255,255,0.1) 100%)`
+                              }}
+                            />
+                            <div className="flex justify-between text-xs text-white/50 mt-2">
+                              <span>0%</span>
+                              <span>100%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Auto Break Settings */}
+                    <div className="mt-8 pt-6 border-t border-white/10">
+                      <div className="text-white text-lg font-medium mb-4 flex items-center justify-center gap-2">
+                        <svg className="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Auto Break Settings
+                      </div>
+                      
+                      <div className="flex items-center justify-center gap-4 mb-6">
+                        <span className="text-white/80 text-sm">Enabled</span>
+                        <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
+                          <button
+                            onClick={() => setAutoBreakSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
+                            className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
+                              autoBreakSettings.enabled ? 'bg-orange-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
+                                autoBreakSettings.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {autoBreakSettings.enabled && (
+                        <>
+                          <div className="mb-6">
+                            <div className="flex items-center justify-center gap-4 mb-3">
+                              <span className="text-white/80 text-sm font-medium">Break Duration</span>
+                              <span className="text-white/60 text-sm">{autoBreakSettings.breakDuration} min</span>
+                            </div>
+                            <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg max-w-md mx-auto">
+                              <input
+                                type="range"
+                                min="5"
+                                max="30"
+                                value={autoBreakSettings.breakDuration}
+                                onChange={(e) => setAutoBreakSettings(prev => ({ ...prev, breakDuration: Number(e.target.value) }))}
+                                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                                style={{
+                                  background: `linear-gradient(to right, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.3) ${((autoBreakSettings.breakDuration - 5) / 25) * 100}%, rgba(255,255,255,0.1) ${((autoBreakSettings.breakDuration - 5) / 25) * 100}%, rgba(255,255,255,0.1) 100%)`
+                                }}
+                              />
+                              <div className="flex justify-between text-xs text-white/50 mt-2">
+                                <span>5 min</span>
+                                <span>30 min</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-center gap-4">
+                            <span className="text-white/80 text-sm font-medium">Skip All Breaks</span>
+                            <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-2 backdrop-blur">
+                              <button
+                                onClick={() => setAutoBreakSettings(prev => ({ ...prev, skipBreaks: !prev.skipBreaks }))}
+                                disabled={isTimerRunning}
+                                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
+                                  autoBreakSettings.skipBreaks ? 'bg-orange-500' : 'bg-white/20'
+                                } ${isTimerRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
+                                    autoBreakSettings.skipBreaks ? 'translate-x-5' : 'translate-x-0.5'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Timer Display */
+              <div className="text-center mb-12">
+                <div className="text-7xl md:text-8xl lg:text-9xl font-bold text-white mb-6 tracking-tight">
                   {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
                 </div>
-                <div className="text-white/60 text-xl capitalize mb-3">{focusMode === 'focus' ? 'Deep Work' : focusMode === 'shortBreak' ? 'Quick Rest' : 'Long Break'} Session</div>
-                
-                {/* Timer Duration Controls */}
-                <div className="flex items-center justify-center gap-6 mb-4">
-                  <button
-                    onClick={() => decreaseTimerDuration(focusMode)}
-                    disabled={timerDurations[focusMode] <= (focusMode === 'focus' ? 25 : 1) || isTimerRunning}
-                    className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                  >
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
-                    </svg>
-                  </button>
-                  
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      max={focusMode === 'focus' ? 240 : 60}
-                      value={timerDurations[focusMode]}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value)
-                        const maxValue = focusMode === 'focus' ? 240 : 60
-                        if (!isNaN(value) && value >= 1 && value <= maxValue) {
-                          setTimerDurations(prev => ({
-                            ...prev,
-                            [focusMode]: value
-                          }))
-                          
-                          // If this is the current mode and timer is not running, update the display
-                          if (!isTimerRunning) {
-                            setTimeLeft(value * 60)
-                          }
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const value = parseInt(e.target.value)
-                        const minValue = focusMode === 'focus' ? 25 : 1
-                        const maxValue = focusMode === 'focus' ? 240 : 60
-                        if (isNaN(value) || value < minValue || value > maxValue) {
-                          setTimerDurations(prev => ({
-                            ...prev,
-                            [focusMode]: Math.max(minValue, Math.min(maxValue, value || minValue))
-                          }))
-                          if (!isTimerRunning) {
-                            setTimeLeft(minValue * 60)
-                          }
-                        } else if (value > 60) {
-                          setTimerDurations(prev => ({
-                            ...prev,
-                            [focusMode]: 60
-                          }))
-                          if (!isTimerRunning) {
-                            setTimeLeft(60 * 60)
-                          }
-                        }
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.currentTarget.blur()
-                        }
-                      }}
-                      disabled={isTimerRunning}
-                      className="w-20 px-3 py-2 text-center bg-white/10 border border-white/20 rounded text-white text-xl font-medium focus:outline-none focus:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <span className="text-white/80 text-xl">min</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => increaseTimerDuration(focusMode)}
-                    disabled={timerDurations[focusMode] >= 60 || isTimerRunning}
-                    className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                  >
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </button>
+                <div className="text-white/70 text-lg md:text-xl capitalize mb-8 font-medium">
+                  {focusMode === 'focus' ? 'Deep Work' : focusMode === 'shortBreak' ? 'Quick Rest' : 'Long Break'} Session
                 </div>
+              </div>
+              )}
                 
-                <div className="text-white/50 text-sm">
-                  {isTimerRunning ? 'Timer running - adjust after reset' : 'Adjust timer duration (type or use +/- buttons)'}
-                </div>
+                {!showSoundSettings && (
+                  <>
+                    {/* Timer Duration Controls */}
+                    <div className="flex items-center justify-center gap-8 mb-6">
+                      <button
+                        onClick={() => decreaseTimerDuration(focusMode)}
+                        disabled={timerDurations[focusMode] <= (focusMode === 'focus' ? 25 : 1) || isTimerRunning}
+                        className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 hover:scale-105"
+                      >
+                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                        </svg>
+                      </button>
+                      
+                      <div className="flex items-center gap-3 bg-white/5 rounded-2xl px-6 py-4 border border-white/10">
+                        <input
+                          type="number"
+                          min="1"
+                          max={focusMode === 'focus' ? 240 : 60}
+                          value={timerDurations[focusMode]}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value)
+                            const maxValue = focusMode === 'focus' ? 240 : 60
+                            const minValue = focusMode === 'focus' ? 25 : 1
+                            
+                            if (!isNaN(value)) {
+                              // Allow typing any number, but cap it at the limits
+                              const cappedValue = Math.max(minValue, Math.min(maxValue, value))
+                              setTimerDurations(prev => ({
+                                ...prev,
+                                [focusMode]: cappedValue
+                              }))
+                              
+                              // If this is the current mode and timer is not running, update the display
+                              if (!isTimerRunning) {
+                                setTimeLeft(cappedValue * 60)
+                              }
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const value = parseInt(e.target.value)
+                            const minValue = focusMode === 'focus' ? 25 : 1
+                            const maxValue = focusMode === 'focus' ? 240 : 60
+                            if (isNaN(value) || value < minValue || value > maxValue) {
+                              setTimerDurations(prev => ({
+                                ...prev,
+                                [focusMode]: Math.max(minValue, Math.min(maxValue, value || minValue))
+                              }))
+                              if (!isTimerRunning) {
+                                setTimeLeft(Math.max(minValue, Math.min(maxValue, value || minValue)) * 60)
+                              }
+                            }
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.currentTarget.blur()
+                            }
+                          }}
+                          disabled={isTimerRunning}
+                          className="w-24 px-4 py-2 text-center bg-transparent border-none text-white text-2xl font-bold focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <span className="text-white/70 text-lg font-medium">min</span>
+                      </div>
+                      
+                      <button
+                        onClick={() => increaseTimerDuration(focusMode)}
+                        disabled={timerDurations[focusMode] >= 60 || isTimerRunning}
+                        className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 hover:scale-105"
+                      >
+                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    <div className="text-white/60 text-sm text-center mb-8">
+                      {isTimerRunning ? 'Timer running - adjust after reset' : 'Adjust timer duration (type or use +/- buttons)'}
+                    </div>
                 
                 {/* Break Schedule Indicator */}
                 {scheduledBreaks.length > 0 && autoBreakSettings.enabled && !autoBreakSettings.skipBreaks && (
@@ -1761,12 +1999,12 @@ export default function HomePage() {
                 )}
 
                 {/* Timer Controls */}
-                <div className="flex gap-4 justify-center mt-6">
+                <div className="flex gap-6 justify-center mb-8">
                   <button
                     onClick={resetTimer}
-                    className="px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center gap-2 text-base font-medium"
+                    className="px-8 py-4 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all duration-200 flex items-center justify-center gap-3 text-lg font-medium hover:scale-105"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     Reset Timer
@@ -1774,9 +2012,9 @@ export default function HomePage() {
                   {isTimerRunning ? (
                     <button
                       onClick={pauseTimer}
-                      className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-2 text-base font-medium"
+                      className="px-8 py-4 bg-orange-500/20 text-orange-300 rounded-xl hover:bg-orange-500/30 transition-all duration-200 flex items-center justify-center gap-3 text-lg font-medium hover:scale-105 border border-orange-500/30"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Pause Timer
@@ -1784,106 +2022,138 @@ export default function HomePage() {
                   ) : (
                     <button
                       onClick={startTimer}
-                      className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-2 text-base font-medium"
+                      className="px-8 py-4 bg-green-500/20 text-green-300 rounded-xl hover:bg-green-500/30 transition-all duration-200 flex items-center justify-center gap-3 text-lg font-medium hover:scale-105 border border-green-500/30"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Start Timer
                     </button>
                   )}
                 </div>
-              </div>
+                  </>
+                )}
 
-              <div className="flex gap-3 mb-8 justify-center">
-                {(['focus', 'shortBreak', 'longBreak'] as const).map((mode) => (
+              {!showSoundSettings && (
+                <div className="flex gap-4 mb-12 justify-center flex-wrap">
+                  {(['focus', 'shortBreak', 'longBreak'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => switchMode(mode)}
+                      className={`px-8 py-4 rounded-xl text-lg font-medium transition-all duration-200 ${
+                        focusMode === mode
+                          ? 'bg-white/20 text-white shadow-lg scale-105'
+                          : 'bg-white/10 text-white/70 hover:text-white hover:bg-white/15 hover:scale-105'
+                      }`}
+                    >
+                      {mode === 'focus' ? 'Deep Work' : mode === 'shortBreak' ? 'Quick Rest' : 'Long Break'}
+                    </button>
+                  ))}
                   <button
-                    key={mode}
-                    onClick={() => switchMode(mode)}
-                    className={`px-6 py-3 rounded-lg text-lg font-medium transition-colors ${
-                      focusMode === mode
-                        ? 'bg-white/20 text-white'
-                        : 'bg-white/10 text-white/60 hover:text-white/80'
-                    }`}
+                    onClick={() => {
+                      playClickSoundIfEnabled()
+                      setShowSoundSettings(true)
+                    }}
+                    className="px-8 py-4 rounded-xl text-lg font-medium transition-all duration-200 bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 hover:text-orange-200 border border-orange-500/30 hover:scale-105"
                   >
-                    {mode === 'focus' ? 'Deep Work' : mode === 'shortBreak' ? 'Quick Rest' : 'Long Break'}
+                    Settings
                   </button>
-                ))}
-              </div>
-
-              {/* Streak System */}
-              <div className="mb-6">
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white text-lg font-semibold flex items-center gap-2">
-                      <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                      </svg>
-                      Focus Streak
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/60 text-sm">Goal:</span>
-                      <input
-                        type="number"
-                        min="1"
-                        max="12"
-                        value={streakData.dailyGoal}
-                        onChange={(e) => updateDailyGoal(parseInt(e.target.value) || 1)}
-                        className="w-12 px-2 py-1 text-center bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:border-white/40"
-                      />
-                      <span className="text-white/60 text-sm">hrs</span>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-4 gap-3">
-                    {/* Current Streak */}
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-yellow-400">{streakData.currentStreak}</div>
-                      <div className="text-white/60 text-sm">Day Streak</div>
-                    </div>
-                    
-                    {/* Today's Progress */}
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-400">
-                        {(streakData.todayFocusedMinutes / 60).toFixed(1)}
-                      </div>
-                      <div className="text-white/60 text-sm">Hours Today</div>
-                    </div>
-                    
-                    {/* Total Hours */}
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-400">
-                        {streakData.totalFocusedHours.toFixed(1)}
-                      </div>
-                      <div className="text-white/60 text-sm">Total Hours</div>
-                    </div>
-                    
-                    {/* Goal Progress */}
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-400">
-                        {focusProgress}%
-                      </div>
-                      <div className="text-white/60 text-sm">Goal Progress</div>
-                    </div>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="mt-3">
-                    <div className="w-full bg-white/10 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-green-400 to-blue-400 h-2 rounded-full transition-all duration-300"
-                        style={{ 
-                          width: `${focusProgress}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-white/60 mt-1">
-                      <span>0h</span>
-                      <span>{streakData.dailyGoal}h goal</span>
-                    </div>
-                  </div>
                 </div>
-              </div>
+              )}
+
+              {showSoundSettings && (
+                <div className="flex justify-center mb-8">
+                  <button
+                    onClick={() => {
+                      playClickSoundIfEnabled()
+                      setShowSoundSettings(false)
+                    }}
+                    className="px-6 py-3 rounded-lg text-lg font-medium transition-colors bg-white/10 text-white hover:bg-white/20 border border-white/20"
+                  >
+                    Back to Timer
+                  </button>
+                </div>
+              )}
+
+              {!showSoundSettings && (
+                <>
+                  {/* Streak System */}
+                  <div className="mb-8">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-white text-xl font-semibold flex items-center gap-3">
+                          <div className="w-8 h-8 bg-yellow-400/20 rounded-full flex items-center justify-center">
+                            <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                          </div>
+                          Focus Streak
+                        </h3>
+                        <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-2">
+                          <span className="text-white/70 text-sm font-medium">Goal:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="12"
+                            value={streakData.dailyGoal}
+                            onChange={(e) => updateDailyGoal(parseInt(e.target.value) || 1)}
+                            className="w-16 px-3 py-1 text-center bg-white/10 border border-white/20 rounded-lg text-white text-sm font-medium focus:outline-none focus:border-white/40"
+                          />
+                          <span className="text-white/70 text-sm font-medium">hrs</span>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                        {/* Current Streak */}
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-white mb-1">{streakData.currentStreak}</div>
+                          <div className="text-white/60 text-sm font-medium">Day Streak</div>
+                        </div>
+                        
+                        {/* Today's Progress */}
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-white mb-1">
+                            {(streakData.todayFocusedMinutes / 60).toFixed(1)}
+                          </div>
+                          <div className="text-white/60 text-sm font-medium">Hours Today</div>
+                        </div>
+                        
+                        {/* Total Hours */}
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-white mb-1">
+                            {streakData.totalFocusedHours.toFixed(1)}
+                          </div>
+                          <div className="text-white/60 text-sm font-medium">Total Hours</div>
+                        </div>
+                        
+                        {/* Goal Progress */}
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-white mb-1">
+                            {focusProgress}%
+                          </div>
+                          <div className="text-white/60 text-sm font-medium">Goal Progress</div>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="space-y-2">
+                        <div className="w-full bg-white/10 rounded-full h-3">
+                          <div 
+                            className="bg-gradient-to-r from-yellow-400 to-orange-500 h-3 rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${focusProgress}%` 
+                            }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-sm text-white/60 font-medium">
+                          <span>0h</span>
+                          <span>{streakData.dailyGoal}h goal</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Task Progress */}
               {todos.length > 0 && (
@@ -1904,7 +2174,7 @@ export default function HomePage() {
                     {/* Task Progress Bar */}
                     <div className="w-full bg-white/10 rounded-full h-3">
                       <div 
-                        className="bg-gradient-to-r from-blue-400 to-purple-400 h-3 rounded-full transition-all duration-300"
+                        className="bg-white/60 h-3 rounded-full transition-all duration-300"
                         style={{ 
                           width: `${taskProgress}%` 
                         }}
@@ -1912,195 +2182,91 @@ export default function HomePage() {
                     </div>
                     <div className="flex justify-between text-xs text-white/60 mt-2">
                       <span>0%</span>
-                      <span className="text-blue-400 font-medium">{taskProgress}% Complete</span>
+                      <span className="text-white/80 font-medium">{taskProgress}% Complete</span>
                       <span>100%</span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Auto Break Settings */}
-              <div className="mb-6">
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white text-lg font-semibold flex items-center gap-2">
-                      <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                      </svg>
-                      Auto Break Settings
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/60 text-sm">Enabled</span>
+
+
+              {!showSoundSettings && (
+                <div className="mb-8">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-green-400/20 rounded-full flex items-center justify-center">
+                        <div className="w-4 h-4 bg-green-400 rounded-full"></div>
+                      </div>
+                      <span className="text-white text-lg font-semibold">Current Mission</span>
+                    </div>
+                    <div className="flex gap-4">
+                      <input
+                        type="text"
+                        value={newFocusTask}
+                        onChange={(e) => setNewFocusTask(e.target.value)}
+                        placeholder="What's your main focus today?"
+                        className="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/40 text-lg font-medium"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && newFocusTask.trim()) {
+                            addTodoFromFocus(newFocusTask.trim())
+                            setNewFocusTask('')
+                          }
+                        }}
+                      />
                       <button
-                        onClick={() => setAutoBreakSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
-                        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
-                          autoBreakSettings.enabled ? 'bg-orange-500' : 'bg-white/20'
-                        }`}
+                        onClick={() => {
+                          if (newFocusTask.trim()) {
+                            addTodoFromFocus(newFocusTask.trim())
+                            setNewFocusTask('')
+                          }
+                        }}
+                        className="px-8 py-4 bg-green-500/20 text-green-300 rounded-xl hover:bg-green-500/30 transition-all duration-200 text-lg font-medium border border-green-500/30 hover:scale-105"
                       >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
-                            autoBreakSettings.enabled ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
+                        Add Mission
                       </button>
                     </div>
                   </div>
-                  
-                  {autoBreakSettings.enabled && (
-                    <>
-                      <div className="mb-6">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-white/80 text-sm font-medium">Break Duration</span>
-                          <span className="text-white/60 text-sm">{autoBreakSettings.breakDuration} min</span>
-                        </div>
-                        <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg">
-                          <input
-                            type="range"
-                            min="5"
-                            max="30"
-                            value={autoBreakSettings.breakDuration}
-                            onChange={(e) => setAutoBreakSettings(prev => ({ ...prev, breakDuration: Number(e.target.value) }))}
-                            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
-                            style={{
-                              background: `linear-gradient(to right, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.3) ${((autoBreakSettings.breakDuration - 5) / 25) * 100}%, rgba(255,255,255,0.1) ${((autoBreakSettings.breakDuration - 5) / 25) * 100}%, rgba(255,255,255,0.1) 100%)`
-                            }}
-                          />
-                          <div className="flex justify-between text-xs text-white/50 mt-2">
-                            <span>5 min</span>
-                            <span>30 min</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="mb-6">
-                        <div className="flex items-center justify-between">
-                          <span className="text-white/80 text-sm font-medium">Skip All Breaks</span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setAutoBreakSettings(prev => ({ ...prev, skipBreaks: !prev.skipBreaks }))}
-                              disabled={isTimerRunning}
-                              className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 focus:outline-none ${
-                                autoBreakSettings.skipBreaks ? 'bg-orange-500' : 'bg-white/20'
-                              } ${isTimerRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
-                                  autoBreakSettings.skipBreaks ? 'translate-x-5' : 'translate-x-0.5'
-                                }`}
-                              />
-                            </button>
-                            {isTimerRunning && (
-                              <span className="text-white/40 text-xs">Session running</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Break Schedule Preview */}
-                      {scheduledBreaks.length > 0 && (
-                        <div className="mt-6">
-                          <div className="text-white/80 text-sm font-medium mb-3">Scheduled Breaks:</div>
-                          <div className="space-y-2">
-                            {scheduledBreaks.map((breakItem, index) => (
-                              <div key={breakItem.id} className="flex items-center justify-between p-2 bg-white/5 rounded">
-                                <span className="text-white/80 text-sm">
-                                  Break {index + 1}: {breakItem.time} min
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  {breakItem.completed && <span className="text-green-400 text-xs">✓ Completed</span>}
-                                  {breakItem.skipped && <span className="text-orange-400 text-xs">⏭ Skipped</span>}
-                                  {!breakItem.completed && !breakItem.skipped && !isTimerRunning && (
-                                    <button
-                                      onClick={() => skipBreak(breakItem.id)}
-                                      className="text-orange-400 text-xs hover:text-orange-300"
-                                    >
-                                      Skip
-                                    </button>
-                                  )}
-                                  {!breakItem.completed && !breakItem.skipped && isTimerRunning && (
-                                    <span className="text-white/40 text-xs">Session running</span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          {isTimerRunning && (
-                            <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded text-orange-400 text-xs">
-                              ⚠️ Cannot skip breaks during active session
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
                 </div>
-              </div>
+              )}
 
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  <span className="text-white/80 text-base">Current Mission:</span>
-                </div>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={newFocusTask}
-                    onChange={(e) => setNewFocusTask(e.target.value)}
-                    placeholder="What's your main focus today?"
-                    className="flex-1 px-6 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-white/40 text-lg"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && newFocusTask.trim()) {
-                        addTodoFromFocus(newFocusTask.trim())
-                        setNewFocusTask('')
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      if (newFocusTask.trim()) {
-                        addTodoFromFocus(newFocusTask.trim())
-                        setNewFocusTask('')
-                      }
-                    }}
-                    className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors text-base font-medium"
-                  >
-                    Add Mission
-                  </button>
-                </div>
-              </div>
-
-              {todos.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-white/80 text-base mb-3">Active Missions:</h3>
-                  <div className="space-y-2 max-h-24 overflow-y-auto custom-scrollbar">
-                    {todos.map((todo) => (
-                      <div
-                        key={todo.id}
-                        className={`flex items-center gap-2 p-2 rounded-lg text-sm ${
-                          todo.completed
-                            ? 'bg-white/5 text-white/40'
-                            : 'bg-white/10 text-white'
-                        }`}
-                      >
-                        <button
-                          onClick={() => toggleTodo(todo.id)}
-                          className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                            todo.completed
-                              ? 'bg-green-500 border-green-500'
-                              : 'border-white/40 hover:border-white/60'
-                          }`}
+              {!showSoundSettings && todos.length > 0 && (
+                <div className="mb-8">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-400/20 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      </div>
+                      Active Missions
+                    </h3>
+                    <div className="space-y-3 max-h-32 overflow-y-auto custom-scrollbar">
+                      {todos.map((todo) => (
+                        <div
+                          key={todo.id}
+                          className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
                         >
-                          {todo.completed && (
-                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </button>
-                        <span className={`flex-1 text-xs ${todo.completed ? 'line-through' : ''}`}>
-                          {todo.title}
-                        </span>
-                      </div>
-                    ))}
+                          <button
+                            onClick={() => toggleTodo(todo.id)}
+                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
+                              todo.completed
+                                ? 'bg-green-500 border-green-500 hover:bg-green-400'
+                                : 'border-white/40 hover:border-white/60 hover:bg-white/10'
+                            }`}
+                          >
+                            {todo.completed && (
+                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                          <span className={`flex-1 text-base font-medium ${todo.completed ? 'line-through text-white/50' : 'text-white/80'}`}>
+                            {todo.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -2167,6 +2333,7 @@ export default function HomePage() {
                 console.log('Focus button clicked, setting showFocus to true')
                 setShowTodo(false)
                 setShowFocus(true)
+                setShowSoundSettings(false) // Hide sound settings when entering Deep Work Zone
               }}
               onHome={() => {
                 console.log('Home button clicked, closing all panels')
