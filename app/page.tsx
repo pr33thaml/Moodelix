@@ -11,6 +11,7 @@ import { useSoundEffects } from '@/lib/useSoundEffects'
 import { useSupabaseAuth } from '@/lib/SupabaseAuthContext'
 import Tooltip from '@/components/Tooltip'
 import { wallpapers as staticWallpapers, getRandomWallpaper, getLiveWallpapers, getPhotoWallpapers } from '@/lib/wallpaperData'
+import { fetchTodos, updateTodo, addTodo, type Todo } from '@/lib/todos'
 
 export default function HomePage() {
   const { user, session, loading, signOut, updateUserData } = useSupabaseAuth()
@@ -86,11 +87,10 @@ export default function HomePage() {
   const [showFontPanel, setShowFontPanel] = useState(false)
   const [showSupportPanel, setShowSupportPanel] = useState(false)
   const [showBugReport, setShowBugReport] = useState(false)
-  const [tasks, setTasks] = useState<Array<{id: string, text: string, completed: boolean, createdAt: Date}>>([])
+  const [todos, setTodos] = useState<Todo[]>([])
   const [focusMode, setFocusMode] = useState<'focus' | 'shortBreak' | 'longBreak'>('focus')
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [timeLeft, setTimeLeft] = useState(25 * 60)
-  const [newTaskText, setNewTaskText] = useState('')
   const [newFocusTask, setNewFocusTask] = useState('')
   
   // Customizable timer durations (in minutes)
@@ -203,26 +203,60 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [isTimerRunning, timeLeft, focusMode, timerDurations, scheduledBreaks, autoBreakSettings])
 
-  // Task management functions
-  const addTask = (text: string) => {
-    const newTask = {
-      id: Date.now().toString(),
-      text,
-      completed: false,
-      createdAt: new Date()
+  // Todo management functions
+  const fetchTodosFromAPI = async () => {
+    if (!session) {
+      console.log('No session, clearing todos')
+      setTodos([])
+      return
     }
-    setTasks(prev => [...prev, newTask])
+
+    try {
+      console.log('🔄 Fetching todos for deep work zone:', session.user.id)
+      const data = await fetchTodos()
+      setTodos(data)
+      console.log('✅ Todos fetched for deep work zone:', data)
+    } catch (error) {
+      console.error('❌ Error fetching todos for deep work zone:', error)
+      setTodos([])
+    }
   }
 
-  const toggleTask = (id: string) => {
-    setTasks(prev => prev.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ))
+  const toggleTodo = async (id: string) => {
+    if (!session) return
+    
+    try {
+      const todo = todos.find(t => t.id === id)
+      if (!todo) return
+      
+      const updatedTodo = await updateTodo(id, { completed: !todo.completed })
+      if (updatedTodo) {
+        await fetchTodosFromAPI()
+        console.log('✅ Todo toggled successfully in deep work zone')
+      }
+    } catch (error) {
+      console.error('❌ Error toggling todo in deep work zone:', error)
+    }
   }
 
-  const deleteTask = (id: string) => {
-    setTasks(prev => prev.filter(task => task.id !== id))
+  const addTodoFromFocus = async (title: string) => {
+    if (!session || !title.trim()) return
+    
+    try {
+      const newTodo = await addTodo(title)
+      if (newTodo) {
+        await fetchTodosFromAPI()
+        console.log('✅ Todo added from deep work zone:', newTodo)
+      }
+    } catch (error) {
+      console.error('❌ Error adding todo from deep work zone:', error)
+    }
   }
+
+  // Fetch todos when session changes
+  useEffect(() => {
+    fetchTodosFromAPI()
+  }, [session])
 
   const startTimer = () => {
     if (focusMode === 'focus') {
@@ -1609,7 +1643,7 @@ export default function HomePage() {
                 </button>
               </div>
 
-              <TodoList />
+              <TodoList onTodosChange={fetchTodosFromAPI} />
             </div>
           </div>
         </div>
@@ -1720,6 +1754,40 @@ export default function HomePage() {
                     </div>
                   </div>
                 )}
+
+                {/* Timer Controls */}
+                <div className="flex gap-4 justify-center mt-6">
+                  <button
+                    onClick={resetTimer}
+                    className="px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center gap-2 text-base font-medium"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reset Timer
+                  </button>
+                  {isTimerRunning ? (
+                    <button
+                      onClick={pauseTimer}
+                      className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-2 text-base font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Pause Timer
+                    </button>
+                  ) : (
+                    <button
+                      onClick={startTimer}
+                      className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-2 text-base font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Start Timer
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-3 mb-8 justify-center">
@@ -1943,7 +2011,7 @@ export default function HomePage() {
                     className="flex-1 px-6 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-white/40 text-lg"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && newFocusTask.trim()) {
-                        addTask(newFocusTask.trim())
+                        addTodoFromFocus(newFocusTask.trim())
                         setNewFocusTask('')
                       }
                     }}
@@ -1951,7 +2019,7 @@ export default function HomePage() {
                   <button
                     onClick={() => {
                       if (newFocusTask.trim()) {
-                        addTask(newFocusTask.trim())
+                        addTodoFromFocus(newFocusTask.trim())
                         setNewFocusTask('')
                       }
                     }}
@@ -1962,35 +2030,35 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {tasks.length > 0 && (
+              {todos.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-white/80 text-base mb-3">Active Missions:</h3>
                   <div className="space-y-2 max-h-24 overflow-y-auto custom-scrollbar">
-                    {tasks.map((task) => (
+                    {todos.map((todo) => (
                       <div
-                        key={task.id}
+                        key={todo.id}
                         className={`flex items-center gap-2 p-2 rounded-lg text-sm ${
-                          task.completed
+                          todo.completed
                             ? 'bg-white/5 text-white/40'
                             : 'bg-white/10 text-white'
                         }`}
                       >
                         <button
-                          onClick={() => toggleTask(task.id)}
+                          onClick={() => toggleTodo(todo.id)}
                           className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                            task.completed
+                            todo.completed
                               ? 'bg-green-500 border-green-500'
                               : 'border-white/40 hover:border-white/60'
                           }`}
                         >
-                          {task.completed && (
+                          {todo.completed && (
                             <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
                           )}
                         </button>
-                        <span className={`flex-1 text-xs ${task.completed ? 'line-through' : ''}`}>
-                          {task.text}
+                        <span className={`flex-1 text-xs ${todo.completed ? 'line-through' : ''}`}>
+                          {todo.title}
                         </span>
                       </div>
                     ))}
@@ -1998,38 +2066,6 @@ export default function HomePage() {
                 </div>
               )}
 
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={resetTimer}
-                  className="px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center gap-2 text-base font-medium"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Reset Timer
-                </button>
-                {isTimerRunning ? (
-                  <button
-                    onClick={pauseTimer}
-                    className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-2 text-base font-medium"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Pause
-                  </button>
-                ) : (
-                  <button
-                    onClick={startTimer}
-                    className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors flex items-center justify-center gap-2 text-base font-medium"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Start Timer
-                  </button>
-                )}
-              </div>
             </div>
           </div>
         </div>

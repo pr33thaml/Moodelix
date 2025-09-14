@@ -5,7 +5,11 @@ import { useSupabaseAuth } from '@/lib/SupabaseAuthContext'
 import { fetchTodos, addTodo, updateTodo, deleteTodo, type Todo } from '@/lib/todos'
 
 
-export default function TodoList() {
+interface TodoListProps {
+  onTodosChange?: () => void
+}
+
+export default function TodoList({ onTodosChange }: TodoListProps) {
   const { user, session } = useSupabaseAuth()
   const [todos, setTodos] = useState<Todo[]>([])
   const [title, setTitle] = useState('')
@@ -47,6 +51,7 @@ export default function TodoList() {
         console.log('✅ Todo added successfully:', newTodo)
         setTitle('')
         await fetchTodosFromAPI()
+        onTodosChange?.()
       }
     } catch (error) {
       console.error('❌ Error adding todo:', error)
@@ -61,6 +66,7 @@ export default function TodoList() {
       const updatedTodo = await updateTodo(id, { completed: !completed })
       if (updatedTodo) {
         await fetchTodosFromAPI()
+        onTodosChange?.()
         console.log('✅ Todo toggled successfully')
       }
     } catch (error) {
@@ -74,6 +80,7 @@ export default function TodoList() {
       const success = await deleteTodo(id)
       if (success) {
         await fetchTodosFromAPI()
+        onTodosChange?.()
         console.log('✅ Todo removed successfully')
       }
     } catch (error) {
@@ -87,6 +94,7 @@ export default function TodoList() {
       for (const todo of todos) {
         await removeTodo(todo.id)
       }
+      onTodosChange?.()
     }
   }
 
